@@ -1,4 +1,4 @@
-package init
+package supergood
 
 import (
 	"fmt"
@@ -25,6 +25,8 @@ func (i Interceptor) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 func Init() {
+	// responseCache := cache.New(cache.NoExpiration, cache.NoExpiration)
+	// requestCache := cache.New(cache.NoExpiration, cache.NoExpiration)
 	http.DefaultClient = &http.Client{
 		Transport: Interceptor{http.DefaultTransport},
 	}
