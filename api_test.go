@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -25,5 +26,7 @@ func TestInterceptor(t *testing.T) {
 	assert.Nil(err)
 
 	requests := interceptor.GetCache()
-	assert.Len(requests, 10)
+	assert.Len(requests, 1)
+	assert.EqualValues(requests[0].URL, srv.URL)
+	assert.Greater(requests[0].duration, time.Duration(0))
 }

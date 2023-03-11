@@ -9,8 +9,7 @@ import (
 const FLUSH_INTERVAL = 10
 
 type RequestResponse struct {
-	req      *http.Request
-	res      *http.Response
+	URL      string
 	duration time.Duration
 }
 
@@ -25,8 +24,7 @@ func (i *SupergoodTransport) RoundTrip(r *http.Request) (*http.Response, error) 
 	resp, err := i.transport.RoundTrip(r)
 	i.requestMutex.Lock()
 	i.requests = append(i.requests, &RequestResponse{
-		req:      r,
-		res:      resp,
+		URL:      r.URL.String(),
 		duration: time.Since(start),
 	})
 	defer i.requestMutex.Unlock()
