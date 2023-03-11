@@ -9,8 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestHelloEmpty calls greetings.Hello with an empty string,
-// checking for an error.
+// Basic test for intercepting HTTP requests and logging them to supergood.
 func TestInterceptor(t *testing.T) {
 	assert := assert.New(t)
 
