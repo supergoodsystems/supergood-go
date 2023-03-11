@@ -24,7 +24,8 @@ func (i Interceptor) RoundTrip(r *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-func Init() {
+// Setup instruments the default client to log requests with the supergood API
+func Setup() {
 	// responseCache := cache.New(cache.NoExpiration, cache.NoExpiration)
 	// requestCache := cache.New(cache.NoExpiration, cache.NoExpiration)
 	http.DefaultClient = &http.Client{
