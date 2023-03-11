@@ -1,28 +1,29 @@
 package supergood
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestHelloEmpty calls greetings.Hello with an empty string,
 // checking for an error.
 func TestInterceptor(t *testing.T) {
+	assert := assert.New(t)
+
 	srv := httptest.NewServer(http.HandlerFunc((func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("%+v\n", r)
-		t.Log("Hello")
-		w.Write([]byte(`{"isItSunday": true}`))
+		w.Write([]byte(`Hello`))
 	})))
 	defer srv.Close()
 
 	c := srv.Client()
-	SetupClient(c)
+	interceptor := SetupClient(c)
 
 	_, err := c.Get(srv.URL)
-	if err != nil {
-		t.Logf("%+v", err)
-		t.Fail()
-	}
+	assert.Nil(err)
+
+	requests := interceptor.GetCache()
+	assert.Len(requests, 10)
 }
