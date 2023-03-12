@@ -8,6 +8,36 @@ import (
 
 const FLUSH_INTERVAL = 10
 
+/***
+* This struct should mirror the backend API expected payloads interface
+*
+* EventRequestType {
+*   request: RequestType;
+*   response: ResponseType;
+* }
+*
+* type BodyType = Record<string, string>;
+*
+* interface RequestType {
+*   id: string;
+*   headers: Headers;
+*   method: string;
+*   url: string;
+*   path: string;
+*   search: string;
+*   body?: string | BodyType | [BodyType];
+*   requestedAt: Date;
+* }
+*
+* interface ResponseType {
+*   headers: Headers;
+*   status: number;
+*   statusText: string;
+*   body?: string | BodyType | [BodyType];
+*   respondedAt: Date;
+*   duration?: number;
+* }
+**/
 type RequestResponse struct {
 	URL      string
 	duration time.Duration
