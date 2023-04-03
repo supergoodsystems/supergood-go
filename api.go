@@ -1,82 +1,82 @@
 package supergood
 
 import (
+	"bytes"
+	b64 "encoding/base64"
+	"encoding/json"
+	"fmt"
 	"net/http"
-	"sync"
-	"time"
 )
 
-const FLUSH_INTERVAL = 10
-
-/***
-* This struct should mirror the backend API expected payloads interface
-*
-* EventRequestType {
-*   request: RequestType;
-*   response: ResponseType;
-* }
-*
-* type BodyType = Record<string, string>;
-*
-* interface RequestType {
-*   id: string;
-*   headers: Headers;
-*   method: string;
-*   url: string;
-*   path: string;
-*   search: string;
-*   body?: string | BodyType | [BodyType];
-*   requestedAt: Date;
-* }
-*
-* interface ResponseType {
-*   headers: Headers;
-*   status: number;
-*   statusText: string;
-*   body?: string | BodyType | [BodyType];
-*   respondedAt: Date;
-*   duration?: number;
-* }
-**/
-type RequestResponse struct {
-	URL      string
-	duration time.Duration
+type SupergoodApi struct {
+	baseUrl             string
+	authorizationString string
+	eventSinkEndpoint   string
+	errorSinkEndpoint   string
 }
 
-type SupergoodTransport struct {
-	transport    http.RoundTripper
-	requestMutex sync.Mutex
-	requests     []*RequestResponse
+func (api *SupergoodApi) SetAuthorizationString(clientId string, clientSecret string) string {
+	api.authorizationString = b64.StdEncoding.EncodeToString([]byte(clientId + ":" + clientSecret))
+	return api.authorizationString
 }
 
-func (i *SupergoodTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	start := time.Now()
-	resp, err := i.transport.RoundTrip(r)
-	i.requestMutex.Lock()
-	i.requests = append(i.requests, &RequestResponse{
-		URL:      r.URL.String(),
-		duration: time.Since(start),
-	})
-	defer i.requestMutex.Unlock()
-	return resp, err
+func (api *SupergoodApi) PostEvents(events []RequestResponse) {
+	jsonBody, jsonErr := json.Marshal(events)
+
+	if jsonErr != nil {
+		fmt.Println("JSON Error")
+		return
+	}
+
+	bodyReader := bytes.NewReader(jsonBody)
+	req, err := http.NewRequest(http.MethodPost, api.baseUrl+api.eventSinkEndpoint, bodyReader)
+
+	if err != nil {
+		fmt.Println("Request Error")
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Basic "+api.authorizationString)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println("Response Error")
+		return
+	}
+	defer res.Body.Close()
 }
 
-func (i *SupergoodTransport) GetCache() []*RequestResponse {
-	return i.requests
+func (api *SupergoodApi) PostErrors(err *SupergoodError) {
+
 }
 
-type Interceptor interface {
-	GetCache() []*RequestResponse
-}
+func (api *SupergoodApi) FetchConfig() *SupergoodConfig {
+	req, err := http.NewRequest(http.MethodGet, api.baseUrl+"/api/config", nil)
 
-// Setup instruments the default client to log requests with the supergood API
-func SetupClient(client *http.Client) Interceptor {
-	transport := &SupergoodTransport{transport: client.Transport}
-	client.Transport = transport
-	return transport
-}
+	if err != nil {
+		fmt.Println("Request Error")
+		return nil
+	}
 
-// Setup instruments the default client to log requests with the supergood API
-func GlobalInit() {
-	http.DefaultTransport = &SupergoodTransport{transport: http.DefaultTransport, requests: make([]*RequestResponse, 0, 10)}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Basic "+api.authorizationString)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println("Response Error")
+		fmt.Println(err)
+		return nil
+	}
+
+	defer res.Body.Close()
+
+	config := new(SupergoodConfig)
+	err = json.NewDecoder(res.Body).Decode(&config)
+
+	if err != nil {
+		fmt.Println("Decode Error")
+		return nil
+	}
+
+	return config
 }
