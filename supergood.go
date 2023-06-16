@@ -93,7 +93,7 @@ func (sg *Service) logResponse(id string, resp *response) {
 
 	if entry, ok := sg.queue[id]; ok {
 		entry.Response = resp
-		entry.Response.Duration = float64(entry.Response.RespondedAt.Sub(entry.Request.RequestedAt)) / float64(time.Millisecond)
+		entry.Response.Duration = int(entry.Response.RespondedAt.Sub(entry.Request.RequestedAt) / time.Millisecond)
 	}
 }
 

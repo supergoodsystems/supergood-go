@@ -215,7 +215,7 @@ func Test_Supergood(t *testing.T) {
 
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 01, 0, time.UTC), events[0].Request.RequestedAt)
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 03, 0, time.UTC), events[0].Response.RespondedAt)
-		require.Equal(t, float64(2000), events[0].Response.Duration)
+		require.Equal(t, 2000, events[0].Response.Duration)
 	})
 
 	t.Run("network failure", func(t *testing.T) {
@@ -310,7 +310,7 @@ func Test_Supergood(t *testing.T) {
 
 		sg, err := New(&Options{
 			OnError:       func(e error) { logErrs = append(logErrs, e) },
-			BaseURL:       "https://does-not-resolve.local",
+			BaseURL:       "https://localhost:1",
 			FlushInterval: 1 * time.Millisecond,
 		})
 		require.NoError(t, err)
