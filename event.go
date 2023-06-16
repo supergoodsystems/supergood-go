@@ -34,7 +34,7 @@ type response struct {
 	StatusText  string            `json:"statusText"`
 	Body        any               `json:"body,omitempty"`
 	RespondedAt time.Time         `json:"respondedAt"`
-	Duration    float64           `json:"duration"`
+	Duration    int               `json:"duration"`
 }
 
 // overridden in tests
