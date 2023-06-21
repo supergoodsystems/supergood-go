@@ -101,16 +101,6 @@ func (sg *Service) logResponse(id string, resp *response) {
 	}
 }
 
-// func (sg *Service) logDebug(e *event) {
-// 	if sg.options.LogLevel == "debug" {
-// 		b, err := json.MarshalIndent((*e), "", "  ")
-// 		if err != nil {
-// 			fmt.Println(err)
-// 		}
-// 		fmt.Print(string(b))
-// 	}
-// }
-
 func (sg *Service) loop() {
 	var closed chan error
 	for {
