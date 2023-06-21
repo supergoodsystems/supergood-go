@@ -22,8 +22,11 @@ func TestOptions_defaults(t *testing.T) {
 	require.Equal(t, "https://dashboard.supergood.ai", o.BaseURL)
 
 	require.False(t, o.RecordRequestBody)
+	require.Equal(t, len(o.IncludeSpecifiedRequestBodyKeys), 0)
 	require.False(t, o.RecordResponseBody)
-	require.True(t, o.RedactHeaders["authorization"])
+	require.Equal(t, len(o.IncludeSpecifiedResponseBodyKeys), 0)
+	require.Equal(t, len(o.AllowedDomains), 0)
+	require.Equal(t, len(o.IncludeSpecifiedRequestHeaderKeys), 0)
 	require.True(t, o.SelectRequests(nil))
 	require.NotNil(t, o.OnError)
 	require.Equal(t, o.FlushInterval, 1*time.Second)
@@ -35,16 +38,19 @@ func TestOptions_overrides(t *testing.T) {
 	client := &http.Client{}
 
 	o, err := (&Options{
-		ClientID:           "test_client_id2",
-		ClientSecret:       "test_client_secret2",
-		BaseURL:            "https://dashboard.superbad.ai",
-		RecordRequestBody:  true,
-		RecordResponseBody: true,
-		RedactHeaders:      map[string]bool{"authz": true},
-		SelectRequests:     func(r *http.Request) bool { return false },
-		OnError:            func(e error) { onErr = e },
-		FlushInterval:      5 * time.Second,
-		HTTPClient:         client,
+		ClientID:                          "test_client_id2",
+		ClientSecret:                      "test_client_secret2",
+		BaseURL:                           "https://dashboard.superbad.ai",
+		RecordRequestBody:                 true,
+		RecordResponseBody:                true,
+		IncludeSpecifiedResponseBodyKeys:  map[string]bool{"foo": true},
+		IncludeSpecifiedRequestBodyKeys:   map[string]bool{"bar": true},
+		IncludeSpecifiedRequestHeaderKeys: map[string]bool{"authz": true},
+		AllowedDomains:                    []string{"example.com"},
+		SelectRequests:                    func(r *http.Request) bool { return false },
+		OnError:                           func(e error) { onErr = e },
+		FlushInterval:                     5 * time.Second,
+		HTTPClient:                        client,
 	}).parse()
 	require.NoError(t, err)
 
@@ -53,8 +59,12 @@ func TestOptions_overrides(t *testing.T) {
 	require.Equal(t, "https://dashboard.superbad.ai", o.BaseURL)
 	require.True(t, o.RecordRequestBody)
 	require.True(t, o.RecordResponseBody)
-	require.False(t, o.RedactHeaders["authorization"])
-	require.True(t, o.RedactHeaders["authz"])
+	require.False(t, o.IncludeSpecifiedRequestHeaderKeys["authorization"])
+	require.True(t, o.IncludeSpecifiedRequestHeaderKeys["authz"])
+	require.True(t, o.IncludeSpecifiedResponseBodyKeys["foo"])
+	require.True(t, o.IncludeSpecifiedRequestBodyKeys["bar"])
+	require.False(t, o.IncludeSpecifiedRequestBodyKeys["baz"])
+	require.Equal(t, []string{"example.com"}, o.AllowedDomains)
 	o.OnError(fmt.Errorf("test error"))
 	require.Equal(t, "test error", onErr.Error())
 	require.Equal(t, o.FlushInterval, 5*time.Second)

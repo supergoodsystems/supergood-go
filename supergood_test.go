@@ -169,31 +169,95 @@ func Test_Supergood(t *testing.T) {
 	t.Run("RecordResponseBody=true", func(t *testing.T) {
 		echo(t, &Options{RecordResponseBody: true})
 		require.Len(t, events, 1)
-		require.Equal(t, "test-body", events[0].Response.Body)
+		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
 	})
 	t.Run("RecordRequestBody=true", func(t *testing.T) {
 		echo(t, &Options{RecordRequestBody: true})
 		require.Len(t, events, 1)
-		require.Equal(t, "test-body", events[0].Request.Body)
+		require.Equal(t, "aaaa*aaaa", events[0].Request.Body)
+	})
+
+	t.Run("AllowedDomains=[\"herokuapp.com\"]", func(t *testing.T) {
+		allowedUrl := "https://supergood-testbed.herokuapp.com/200"
+		allowedDomains := []string{"herokuapp.com"}
+		reset()
+		sg, err := New(&Options{AllowedDomains: allowedDomains})
+		require.NoError(t, err)
+		_, err = sg.DefaultClient.Get(allowedUrl)
+		_, err = sg.DefaultClient.Get("https://api64.ipify.org/?format=json")
+
+		require.NoError(t, sg.Close())
+		require.Len(t, events, 1)
+		require.Equal(t, allowedUrl, events[0].Request.URL)
+		echo(t, &Options{AllowedDomains: allowedDomains})
+	})
+
+	t.Run("redacting nested string values", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": map[string]any{"key": "aaaaa"}, "other": "aaaaa"}, events[0].Request.Body)
+	})
+
+	t.Run("redacting nested integer values", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":999},"other":999}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": map[string]any{"key": float64(111)}, "other": float64(111)}, events[0].Request.Body)
+	})
+
+	t.Run("redacting nested float values", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":999.99},"other":999.99}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": map[string]any{"key": 111.111111}, "other": 111.111111}, events[0].Request.Body)
+	})
+
+	t.Run("redacting nested array values", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":[{"key":"value"}],"other":["value"]}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": []any{map[string]any{"key": "aaaaa"}}, "other": []any{"aaaaa"}}, events[0].Request.Body)
+	})
+
+	t.Run("redacting nested boolean values", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":true},"other":true}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": map[string]any{"key": false}, "other": false}, events[0].Request.Body)
+	})
+
+	t.Run("redacting nested non-ASCII values", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":"สวัสดี"},"other":"ลาก่อน"}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": map[string]any{"key": "******"}, "other": "******"}, events[0].Request.Body)
+	})
+
+	t.Run("redacting nil values", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key": null},"other": null}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": map[string]any{"key": nil}, "other": nil}, events[0].Request.Body)
+	})
+
+	t.Run("ignoring redaction for nested request keys", func(t *testing.T) {
+		echoBody(t, &Options{RecordRequestBody: true, IncludeSpecifiedRequestBodyKeys: map[string]bool{"key": true}}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
+		require.Len(t, events, 1)
+		require.Equal(t, map[string]any{"nested": map[string]any{"key": "value"}, "other": "aaaaa"}, events[0].Request.Body)
 	})
 
 	t.Run("valid JSON body", func(t *testing.T) {
 		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"ok":200}`))
 		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"ok": float64(200)}, events[0].Request.Body)
+		require.Equal(t, map[string]any{"ok": float64(111)}, events[0].Request.Body)
 	})
 
 	t.Run("binary body", func(t *testing.T) {
 		echoBody(t, &Options{RecordRequestBody: true}, []byte{0xff, 0x00, 0xff, 0x00})
 		require.Len(t, events, 1)
-		require.Equal(t, "/wD/AA==", events[0].Request.Body)
+		// String = "/wD/AA=="
+		require.Equal(t, "binary", events[0].Request.Body)
 	})
 
 	t.Run("RedactHeaders", func(t *testing.T) {
-		echo(t, &Options{RedactHeaders: map[string]bool{"AUTH-WAS": true}})
+		echo(t, &Options{IncludeSpecifiedRequestHeaderKeys: map[string]bool{"AUTH-WAS": true}})
 		require.Len(t, events, 1)
-		require.Equal(t, events[0].Request.Headers["Authorization"], "test-auth")
-		require.Equal(t, events[0].Response.Headers["Auth-Was"], "redacted:dba430468af6b5fc3c22facf6dc871ce6e3801b9")
+		require.Equal(t, events[0].Request.Headers["Authorization"], "redacted:dba430468af6b5fc3c22facf6dc871ce6e3801b9")
+		require.Equal(t, events[0].Response.Headers["Auth-Was"], "test-auth")
 	})
 
 	t.Run("SelectRequests", func(t *testing.T) {

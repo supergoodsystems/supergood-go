@@ -23,17 +23,36 @@ type Options struct {
 	BaseURL string
 
 	// RecordRequestBody additionally sends the body of requests to supergood for debugging.
-	// (defaults to false)
+	// Defaults to false, if set true all values will be redacted and hashed unless specified
 	RecordRequestBody bool
+
+	// IncludeRequestBodyKeys is a list of keys who's value which to NOT redact in the request body
+	// if RecordRequestBody is true
+	// (defaults to an empty map)
+	IncludeSpecifiedRequestBodyKeys map[string]bool
+
 	// RecordResponseBody additionally sends the body of responses to supergood for debugging.
-	// (defaults to false)
+	// Defaults to false, if set true all values will be redacted and hashed unless specified
 	RecordResponseBody bool
-	// RedactHeaders replaces sensitive headers by the sha1 of their contents.
+
+	// IncludeResponseBodyKeys is a list of keys who's value which to NOT redact in the response body
+	// if RecordResponseBody is true
+	// (defaults to an empty map)
+	IncludeSpecifiedResponseBodyKeys map[string]bool
+
+	// Supergood replaces sensitive headers by the sha1 of their contents, by default.
+	// IncludeSpecifiedRequestHeadersKeys will override this behavior and include the specified value
 	// Matching is case insensitive.
-	// (defaults to redacting "Authorization", "Cookie" and "Set-Cookie")
-	RedactHeaders map[string]bool
+	IncludeSpecifiedRequestHeaderKeys map[string]bool
+
+	// List of strings to match against the host of the request URL in order to determine
+	// whether or not to log the request to supergood, based on the domain. Case sensitive.
+	// (by default all domains are logged)
+	AllowedDomains []string
+
 	// SelectRequests selects which requests are logged to supergood.
 	// Return true to log the request to supergood.
+	// Overrides `AllowedDomains`
 	// (by default all requests are logged)
 	SelectRequests func(r *http.Request) bool
 
@@ -46,6 +65,9 @@ type Options struct {
 	// The HTTPClient to use to make requests to Supergood's API
 	// (defaults to http.DefaultClient)
 	HTTPClient *http.Client
+
+	// Log Level to use for logging, debug will print flushes
+	LogLevel string
 }
 
 func (o *Options) parse() (*Options, error) {
@@ -97,22 +119,41 @@ func (o *Options) parse() (*Options, error) {
 		}
 	}
 
-	headers := o.RedactHeaders
-	if headers == nil {
-		headers = map[string]bool{
-			"Authorization": true,
-			"Cookie":        true,
-			"Set-Cookie":    true,
+	if o.IncludeSpecifiedRequestHeaderKeys == nil {
+		o.IncludeSpecifiedRequestHeaderKeys = map[string]bool{}
+	} else {
+		for k, v := range o.IncludeSpecifiedRequestHeaderKeys {
+			o.IncludeSpecifiedRequestHeaderKeys[strings.ToLower(k)] = v
 		}
 	}
-	o.RedactHeaders = map[string]bool{}
-	for k, v := range headers {
-		o.RedactHeaders[strings.ToLower(k)] = v
+
+	if o.IncludeSpecifiedRequestBodyKeys == nil {
+		o.IncludeSpecifiedRequestBodyKeys = map[string]bool{}
+	}
+
+	if o.IncludeSpecifiedResponseBodyKeys == nil {
+		o.IncludeSpecifiedResponseBodyKeys = map[string]bool{}
 	}
 
 	if o.SelectRequests == nil {
-		o.SelectRequests = func(r *http.Request) bool { return true }
+		if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
+			o.SelectRequests = func(r *http.Request) bool {
+				return contains(r.URL.Host, o.AllowedDomains)
+			}
+		} else {
+			o.SelectRequests = func(r *http.Request) bool { return true }
+		}
 	}
 
 	return o, nil
+}
+
+// Function to determine if a target string contains any value from an array of strings
+func contains(target string, values []string) bool {
+	for _, value := range values {
+		if strings.Contains(target, value) {
+			return true
+		}
+	}
+	return false
 }

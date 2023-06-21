@@ -51,6 +51,10 @@ func New(o *Options) (*Service, error) {
 	}
 
 	sg.DefaultClient = sg.Wrap(http.DefaultClient)
+
+	// Overrides default client
+	http.DefaultClient = sg.DefaultClient
+
 	sg.reset()
 	go sg.loop()
 	return sg, nil
@@ -97,6 +101,16 @@ func (sg *Service) logResponse(id string, resp *response) {
 	}
 }
 
+// func (sg *Service) logDebug(e *event) {
+// 	if sg.options.LogLevel == "debug" {
+// 		b, err := json.MarshalIndent((*e), "", "  ")
+// 		if err != nil {
+// 			fmt.Println(err)
+// 		}
+// 		fmt.Print(string(b))
+// 	}
+// }
+
 func (sg *Service) loop() {
 	var closed chan error
 	for {
@@ -123,7 +137,6 @@ func (sg *Service) loop() {
 
 func (sg *Service) flush(force bool) error {
 	entries := sg.reset()
-
 	toSend := []*event{}
 
 	for _, entry := range entries {
@@ -136,7 +149,6 @@ func (sg *Service) flush(force bool) error {
 	if len(toSend) == 0 {
 		return nil
 	}
-
 	return sg.post("/api/events", toSend)
 }
 
