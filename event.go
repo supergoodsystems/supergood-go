@@ -214,11 +214,6 @@ func (rc *readCloser) Close() error {
 }
 
 func duplicateBody(r io.ReadCloser) (body any, rc io.ReadCloser) {
-	// Network error failures don't pass anything
-	// if r == nil {
-	// 	return
-	// }
-
 	b, err := io.ReadAll(r)
 	rc = &readCloser{c: r, r: bytes.NewReader(b), e: err}
 
