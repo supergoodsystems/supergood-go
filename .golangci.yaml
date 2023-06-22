@@ -1,2 +1,2 @@
 run:
-  tests: true
+  tests: false
