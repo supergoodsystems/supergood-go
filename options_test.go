@@ -84,4 +84,6 @@ func TestOptions_errors(t *testing.T) {
 		require.Error(t, err)
 	}
 
+	_, err := New(&Options{AllowedDomains: []string{"superbad.ai"}})
+	require.Error(t, err)
 }

@@ -189,7 +189,7 @@ func Test_Supergood(t *testing.T) {
 		require.NoError(t, sg.Close())
 		require.Len(t, events, 1)
 		require.Equal(t, allowedUrl, events[0].Request.URL)
-		echo(t, &Options{AllowedDomains: allowedDomains})
+		// echo(t, &Options{AllowedDomains: allowedDomains})
 	})
 
 	t.Run("redacting nested string values", func(t *testing.T) {

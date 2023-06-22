@@ -22,6 +22,10 @@ type Options struct {
 	// or "https://dashboard.supergood.ai" if not set)
 	BaseURL string
 
+	// DisableDefaultClient disables Supergood overriding http.DefaultClient
+	// (defaults to false)
+	DisableDefaultClient bool
+
 	// RecordRequestBody additionally sends the body of requests to supergood for debugging.
 	// Defaults to false, if set true all values will be redacted and hashed unless specified
 	RecordRequestBody bool
@@ -135,13 +139,36 @@ func (o *Options) parse() (*Options, error) {
 		o.IncludeSpecifiedResponseBodyKeys = map[string]bool{}
 	}
 
+	if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
+		if contains(o.BaseURL, o.AllowedDomains) {
+			return nil, fmt.Errorf("supergood: AllowedDomain can not match BaseURL")
+		}
+
+	}
+
 	if o.SelectRequests == nil {
+		url, err := url.Parse(o.BaseURL)
+		if err != nil {
+			return nil, fmt.Errorf("supergood: invalid BaseURL: %w", err)
+		}
+
+		baseUrlHostName := strings.TrimPrefix(url.Host, "www.")
+
 		if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
 			o.SelectRequests = func(r *http.Request) bool {
-				return contains(r.URL.Host, o.AllowedDomains)
+				if r != nil {
+					return r.URL.Host != baseUrlHostName && contains(r.URL.Host, o.AllowedDomains)
+				}
+				return true
 			}
 		} else {
-			o.SelectRequests = func(r *http.Request) bool { return true }
+			// Do not log API calls to supergood
+			o.SelectRequests = func(r *http.Request) bool {
+				if r != nil {
+					return r.URL.Host != baseUrlHostName
+				}
+				return true
+			}
 		}
 	}
 

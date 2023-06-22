@@ -52,8 +52,10 @@ func New(o *Options) (*Service, error) {
 
 	sg.DefaultClient = sg.Wrap(http.DefaultClient)
 
-	// Overrides default client
-	http.DefaultClient = sg.DefaultClient
+	// Overrides default client to use on all requests
+	if !o.DisableDefaultClient {
+		http.DefaultClient = sg.DefaultClient
+	}
 
 	sg.reset()
 	go sg.loop()
