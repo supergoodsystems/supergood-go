@@ -29,6 +29,7 @@ type Service struct {
 	// DefaultClient is a wrapped version of http.DefaultClient
 	// If you'd like to use supergood on all requests, set
 	// http.DefaultClient = sg.DefaultClient.
+
 	DefaultClient *http.Client
 
 	options *Options
@@ -51,11 +52,6 @@ func New(o *Options) (*Service, error) {
 	}
 
 	sg.DefaultClient = sg.Wrap(http.DefaultClient)
-
-	// Overrides default client to use on all requests
-	if !o.DisableDefaultClient {
-		http.DefaultClient = sg.DefaultClient
-	}
 
 	sg.reset()
 	go sg.loop()

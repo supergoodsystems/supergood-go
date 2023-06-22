@@ -9,10 +9,10 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -46,10 +46,6 @@ var clock = time.Now
 
 func newRequest(id string, r *http.Request, options *Options) *request {
 	var body any
-
-	if r.Body == nil {
-		r.Body = http.NoBody
-	}
 
 	if options.RecordRequestBody {
 		body, r.Body = duplicateBody(r.Body)
@@ -122,18 +118,6 @@ func formatHeaders(h http.Header, includedKeys map[string]bool) map[string]strin
 }
 
 func redactValues(b any, includedKeys map[string]bool) any {
-	lowerCase := regexp.MustCompile("[a-z]")
-	upperCase := regexp.MustCompile("[A-Z]")
-	numeric := regexp.MustCompile("[0-9]")
-	special := regexp.MustCompile("[^a-zA-Z0-9\\s]")
-
-	var redactInt = func(i int) int {
-		s := strconv.Itoa(i)
-		s = numeric.ReplaceAllString(s, "1")
-		i, _ = strconv.Atoi(s)
-		return i
-	}
-
 	switch b := b.(type) {
 	case map[string]any:
 		for k, v := range b {
@@ -149,13 +133,10 @@ func redactValues(b any, includedKeys map[string]bool) any {
 			b[i] = redactValues(v, includedKeys)
 		}
 		return b
-	case []uint8:
+	case []byte:
 		return "binary"
 	case string:
-		b = upperCase.ReplaceAllString(b, "A")
-		b = lowerCase.ReplaceAllString(b, "a")
-		b = numeric.ReplaceAllString(b, "1")
-		b = special.ReplaceAllString(b, "*")
+		b = redactStr(b)
 		return b
 	case bool:
 		b = false
@@ -169,24 +150,18 @@ func redactValues(b any, includedKeys map[string]bool) any {
 			return b
 		} else {
 			s := fmt.Sprintf("%f", b)
-			s = numeric.ReplaceAllString(s, "1")
-			b, err := strconv.ParseFloat(s, 64)
+			redacted := ""
+			for _, rune := range s {
+				if rune == '.' {
+					redacted += "."
+				} else {
+					redacted += "1"
+				}
+			}
+			b, err := strconv.ParseFloat(redacted, 64)
 			if err != nil {
 				b = 0
 			}
-			return b
-		}
-	case float32:
-		if float64(b) == math.Trunc(float64(b)) {
-			return float32(redactInt(int(b)))
-		} else {
-			s := fmt.Sprintf("%f", b)
-			s = numeric.ReplaceAllString(s, "1")
-			f, err := strconv.ParseFloat(s, 32)
-			if err != nil {
-				b = 0
-			}
-			b = float32(f)
 			return b
 		}
 	case nil:
@@ -194,6 +169,32 @@ func redactValues(b any, includedKeys map[string]bool) any {
 	default:
 		return "?"
 	}
+}
+
+func redactStr(str string) string {
+	redacted := ""
+	for _, rune := range str {
+		switch {
+		case unicode.IsUpper(rune):
+			redacted += "A"
+		case unicode.IsLower(rune):
+			redacted += "a"
+		case unicode.IsNumber(rune):
+			redacted += "1"
+		case unicode.IsSpace(rune):
+			redacted += " "
+		default:
+			redacted += "*"
+		}
+	}
+	return redacted
+}
+
+func redactInt(i int) int {
+	str := strconv.Itoa(i)
+	rstr := redactStr(str)
+	istr, _ := strconv.Atoi(rstr)
+	return istr
 }
 
 type readCloser struct {
@@ -214,6 +215,10 @@ func (rc *readCloser) Close() error {
 }
 
 func duplicateBody(r io.ReadCloser) (body any, rc io.ReadCloser) {
+	if r == nil {
+		return nil, nil
+	}
+
 	b, err := io.ReadAll(r)
 	rc = &readCloser{c: r, r: bytes.NewReader(b), e: err}
 

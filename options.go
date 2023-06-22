@@ -22,10 +22,6 @@ type Options struct {
 	// or "https://dashboard.supergood.ai" if not set)
 	BaseURL string
 
-	// DisableDefaultClient disables Supergood overriding http.DefaultClient
-	// (defaults to false)
-	DisableDefaultClient bool
-
 	// RecordRequestBody additionally sends the body of requests to supergood for debugging.
 	// Defaults to false, if set true all values will be redacted and hashed unless specified
 	RecordRequestBody bool
