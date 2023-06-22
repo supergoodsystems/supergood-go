@@ -152,7 +152,7 @@ func Test_Supergood(t *testing.T) {
 	}
 
 	t.Run("default", func(t *testing.T) {
-		echo(t, &Options{RecordResponseBody: false})
+		echo(t, &Options{RecordResponseBody: false, DisableDefaultClient: true})
 		require.Len(t, events, 1)
 		require.Nil(t, events[0].Response.Body)
 		require.Nil(t, events[0].Request.Body)
@@ -167,12 +167,12 @@ func Test_Supergood(t *testing.T) {
 	})
 
 	t.Run("RecordResponseBody=true", func(t *testing.T) {
-		echo(t, &Options{RecordResponseBody: true})
+		echo(t, &Options{RecordResponseBody: true, DisableDefaultClient: true})
 		require.Len(t, events, 1)
 		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
 	})
 	t.Run("RecordRequestBody=true", func(t *testing.T) {
-		echo(t, &Options{RecordRequestBody: true})
+		echo(t, &Options{RecordRequestBody: true, DisableDefaultClient: true})
 		require.Len(t, events, 1)
 		require.Equal(t, "aaaa*aaaa", events[0].Request.Body)
 	})
@@ -193,68 +193,68 @@ func Test_Supergood(t *testing.T) {
 	})
 
 	t.Run("redacting nested string values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": "aaaaa"}, "other": "aaaaa"}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested integer values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":999},"other":999}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"nested":{"key":999},"other":999}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": float64(111)}, "other": float64(111)}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested float values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":999.99},"other":999.99}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"nested":{"key":999.99},"other":999.99}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": 111.111111}, "other": 111.111111}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested array values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":[{"key":"value"}],"other":["value"]}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"nested":[{"key":"value"}],"other":["value"]}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": []any{map[string]any{"key": "aaaaa"}}, "other": []any{"aaaaa"}}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested boolean values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":true},"other":true}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"nested":{"key":true},"other":true}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": false}, "other": false}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested non-ASCII values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":"สวัสดี"},"other":"ลาก่อน"}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"nested":{"key":"สวัสดี"},"other":"ลาก่อน"}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": "******"}, "other": "******"}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nil values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key": null},"other": null}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"nested":{"key": null},"other": null}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": nil}, "other": nil}, events[0].Request.Body)
 	})
 
 	t.Run("ignoring redaction for nested request keys", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true, IncludeSpecifiedRequestBodyKeys: map[string]bool{"key": true}}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true, IncludeSpecifiedRequestBodyKeys: map[string]bool{"key": true}}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": "value"}, "other": "aaaaa"}, events[0].Request.Body)
 	})
 
 	t.Run("valid JSON body", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"ok":200}`))
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte(`{"ok":200}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"ok": float64(111)}, events[0].Request.Body)
 	})
 
 	t.Run("binary body", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte{0xff, 0x00, 0xff, 0x00})
+		echoBody(t, &Options{RecordRequestBody: true, DisableDefaultClient: true}, []byte{0xff, 0x00, 0xff, 0x00})
 		require.Len(t, events, 1)
 		// String = "/wD/AA=="
 		require.Equal(t, "binary", events[0].Request.Body)
 	})
 
 	t.Run("RedactHeaders", func(t *testing.T) {
-		echo(t, &Options{IncludeSpecifiedRequestHeaderKeys: map[string]bool{"AUTH-WAS": true}})
+		echo(t, &Options{IncludeSpecifiedRequestHeaderKeys: map[string]bool{"AUTH-WAS": true}, DisableDefaultClient: true})
 		require.Len(t, events, 1)
 		require.Equal(t, events[0].Request.Headers["Authorization"], "redacted:dba430468af6b5fc3c22facf6dc871ce6e3801b9")
 		require.Equal(t, events[0].Response.Headers["Auth-Was"], "test-auth")
@@ -268,6 +268,7 @@ func Test_Supergood(t *testing.T) {
 				}
 				return true
 			},
+			DisableDefaultClient: true,
 		})
 		require.Len(t, events, 0)
 	})
@@ -275,7 +276,7 @@ func Test_Supergood(t *testing.T) {
 	t.Run("test timing", func(t *testing.T) {
 		clock = func() time.Time { return time.Date(2023, 01, 01, 01, 01, 01, 0, time.UTC) }
 		defer func() { clock = time.Now }()
-		echoBody(t, nil, []byte("set-clock"))
+		echoBody(t, &Options{DisableDefaultClient: true}, []byte("set-clock"))
 
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 01, 0, time.UTC), events[0].Request.RequestedAt)
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 03, 0, time.UTC), events[0].Response.RespondedAt)
@@ -299,7 +300,7 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("error handling on response body parsing", func(t *testing.T) {
 		reset()
-		sg, err := New(&Options{RecordResponseBody: true})
+		sg, err := New(&Options{RecordResponseBody: true, DisableDefaultClient: true})
 		require.NoError(t, err)
 		defer sg.Close()
 
@@ -324,7 +325,7 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("test flush", func(t *testing.T) {
 		reset()
-		sg, err := New(&Options{FlushInterval: 1 * time.Millisecond})
+		sg, err := New(&Options{FlushInterval: 1 * time.Millisecond, DisableDefaultClient: true})
 		require.NoError(t, err)
 		defer sg.Close()
 		sg.DefaultClient.Get(host + "/echo")
@@ -337,7 +338,7 @@ func Test_Supergood(t *testing.T) {
 	t.Run("error handling on close", func(t *testing.T) {
 		broken = true
 		defer func() { broken = false }()
-		echo(t, nil)
+		echo(t, &Options{DisableDefaultClient: true})
 		require.Len(t, errors, 1)
 		require.Equal(t, "supergood: got HTTP 500 Internal Server Error posting to /api/events", errors[0].Message)
 		require.Equal(t, "supergood-go", errors[0].Payload.Name)
@@ -350,7 +351,7 @@ func Test_Supergood(t *testing.T) {
 		twiceBroken = true
 		defer func() { twiceBroken = false }()
 		var logErr error
-		sg, err := New(&Options{OnError: func(e error) { logErr = e }})
+		sg, err := New(&Options{OnError: func(e error) { logErr = e }, DisableDefaultClient: true})
 		require.NoError(t, err)
 		sg.DefaultClient.Get(host + "/echo")
 
@@ -361,7 +362,7 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("handling invalid client id", func(t *testing.T) {
 		var logErr error
-		sg, err := New(&Options{OnError: func(e error) { logErr = e }, ClientID: "oops"})
+		sg, err := New(&Options{OnError: func(e error) { logErr = e }, ClientID: "oops", DisableDefaultClient: true})
 		require.NoError(t, err)
 		sg.DefaultClient.Get(host + "/echo")
 		err = sg.Close()
