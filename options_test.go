@@ -43,6 +43,7 @@ func TestOptions_overrides(t *testing.T) {
 		BaseURL:                           "https://dashboard.superbad.ai",
 		RecordRequestBody:                 true,
 		RecordResponseBody:                true,
+		DisableDefaultClient:              true,
 		IncludeSpecifiedResponseBodyKeys:  map[string]bool{"foo": true},
 		IncludeSpecifiedRequestBodyKeys:   map[string]bool{"bar": true},
 		IncludeSpecifiedRequestHeaderKeys: map[string]bool{"authz": true},
@@ -59,6 +60,7 @@ func TestOptions_overrides(t *testing.T) {
 	require.Equal(t, "https://dashboard.superbad.ai", o.BaseURL)
 	require.True(t, o.RecordRequestBody)
 	require.True(t, o.RecordResponseBody)
+	require.True(t, o.DisableDefaultClient)
 	require.False(t, o.IncludeSpecifiedRequestHeaderKeys["authorization"])
 	require.True(t, o.IncludeSpecifiedRequestHeaderKeys["authz"])
 	require.True(t, o.IncludeSpecifiedResponseBodyKeys["foo"])
