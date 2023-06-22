@@ -183,8 +183,8 @@ func Test_Supergood(t *testing.T) {
 		reset()
 		sg, err := New(&Options{AllowedDomains: allowedDomains})
 		require.NoError(t, err)
-		_, err = sg.DefaultClient.Get(allowedUrl)
-		_, err = sg.DefaultClient.Get("https://api64.ipify.org/?format=json")
+		sg.DefaultClient.Get(allowedUrl)
+		sg.DefaultClient.Get("https://api64.ipify.org/?format=json")
 
 		require.NoError(t, sg.Close())
 		require.Len(t, events, 1)
