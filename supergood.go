@@ -135,7 +135,7 @@ func (sg *Service) flush(force bool) error {
 	if len(toSend) == 0 {
 		return nil
 	}
-	return sg.post("/api/events", toSend)
+	return sg.post("/events", toSend)
 }
 
 func (sg *Service) reset() map[string]*event {
@@ -177,7 +177,7 @@ func (sg *Service) logError(e error) error {
 	}
 
 	// TODO: we don't currently include the data or the config
-	return sg.post("/api/errors", &errorReport{
+	return sg.post("/errors", &errorReport{
 		Error:   e.Error(),
 		Message: e.Error(),
 		Payload: getVersion(),

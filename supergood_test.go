@@ -63,7 +63,7 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if r.URL.Path == "/api/errors" && r.Method == "POST" {
+		if r.URL.Path == "/errors" && r.Method == "POST" {
 			newErr := &errorReport{}
 			err := json.NewDecoder(r.Body).Decode(&newErr)
 			require.NoError(t, err)
@@ -79,7 +79,7 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if r.URL.Path == "/api/events" && r.Method == "POST" {
+		if r.URL.Path == "/events" && r.Method == "POST" {
 			newEvents := []*event{}
 			err := json.NewDecoder(r.Body).Decode(&newEvents)
 			require.NoError(t, err)
@@ -352,7 +352,7 @@ func Test_Supergood(t *testing.T) {
 		defer func() { broken = false }()
 		echo(t, &Options{})
 		require.Len(t, errors, 1)
-		require.Equal(t, "supergood: got HTTP 500 Internal Server Error posting to /api/events", errors[0].Message)
+		require.Equal(t, "supergood: got HTTP 500 Internal Server Error posting to /events", errors[0].Message)
 		require.Equal(t, "supergood-go", errors[0].Payload.Name)
 		// cannot be read in tests
 		require.Equal(t, "unknown", errors[0].Payload.Version)
