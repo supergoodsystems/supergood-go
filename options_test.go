@@ -19,7 +19,7 @@ func TestOptions_defaults(t *testing.T) {
 
 	require.Equal(t, "test_client_id", o.ClientID)
 	require.Equal(t, "test_client_secret", o.ClientSecret)
-	require.Equal(t, "https://dashboard.supergood.ai", o.BaseURL)
+	require.Equal(t, "https://api.supergood.ai", o.BaseURL)
 
 	require.False(t, o.RecordRequestBody)
 	require.Equal(t, len(o.IncludeSpecifiedRequestBodyKeys), 0)
@@ -40,7 +40,7 @@ func TestOptions_overrides(t *testing.T) {
 	o, err := (&Options{
 		ClientID:                          "test_client_id2",
 		ClientSecret:                      "test_client_secret2",
-		BaseURL:                           "https://dashboard.superbad.ai",
+		BaseURL:                           "https://api.superbad.ai",
 		RecordRequestBody:                 true,
 		RecordResponseBody:                true,
 		IncludeSpecifiedResponseBodyKeys:  map[string]bool{"foo": true},
@@ -56,7 +56,7 @@ func TestOptions_overrides(t *testing.T) {
 
 	require.Equal(t, "test_client_id2", o.ClientID)
 	require.Equal(t, "test_client_secret2", o.ClientSecret)
-	require.Equal(t, "https://dashboard.superbad.ai", o.BaseURL)
+	require.Equal(t, "https://api.superbad.ai", o.BaseURL)
 	require.True(t, o.RecordRequestBody)
 	require.True(t, o.RecordResponseBody)
 	require.False(t, o.IncludeSpecifiedRequestHeaderKeys["authorization"])

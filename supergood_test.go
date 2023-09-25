@@ -40,7 +40,7 @@ func mockServer(t *testing.T, h http.HandlerFunc) string {
 	return "http://" + listener.Addr().String()
 }
 
-// mock dashboard.supergood.ai for testing
+// mock api.supergood.ai for testing
 func mockApiServer(t *testing.T) string {
 
 	return mockServer(t, func(rw http.ResponseWriter, r *http.Request) {

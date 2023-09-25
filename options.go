@@ -19,7 +19,7 @@ type Options struct {
 	ClientSecret string
 	// BaseURL is where to find the supergood API
 	// (defaults to the SUPERGOOD_BASE_URL environment variable,
-	// or "https://dashboard.supergood.ai" if not set)
+	// or "https://api.supergood.ai" if not set)
 	BaseURL string
 
 	// RecordRequestBody additionally sends the body of requests to supergood for debugging.
@@ -96,7 +96,7 @@ func (o *Options) parse() (*Options, error) {
 		o.BaseURL = os.Getenv("SUPERGOOD_BASE_URL")
 	}
 	if o.BaseURL == "" {
-		o.BaseURL = "https://dashboard.supergood.ai"
+		o.BaseURL = "https://api.supergood.ai"
 	}
 	if u, err := url.Parse(o.BaseURL); err != nil || (u.Scheme != "https" && u.Scheme != "http") {
 		return nil, fmt.Errorf("supergood: invalid BaseURL: %w", err)
