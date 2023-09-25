@@ -85,14 +85,12 @@ func (sg *Service) Close() error {
 func (sg *Service) logRequest(id string, req *request) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
-
 	sg.queue[id] = &event{Request: req}
 }
 
 func (sg *Service) logResponse(id string, resp *response) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
-
 	if entry, ok := sg.queue[id]; ok {
 		entry.Response = resp
 		entry.Response.Duration = int(entry.Response.RespondedAt.Sub(entry.Request.RequestedAt) / time.Millisecond)

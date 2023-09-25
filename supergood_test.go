@@ -297,6 +297,19 @@ func Test_Supergood(t *testing.T) {
 		require.Contains(t, events[0].Response.Body, "no such host")
 	})
 
+	t.Run("hanging request", func(t *testing.T) {
+		reset()
+		sg, err := New(nil)
+		require.NoError(t, err)
+
+		_, err = sg.DefaultClient.Get("https://httpbin.org/get")
+		require.NoError(t, err)
+		require.NoError(t, sg.Close())
+
+		require.Len(t, events, 1)
+		require.Equal(t, 200, events[0].Response.Status)
+	})
+
 	t.Run("error handling on response body parsing", func(t *testing.T) {
 		reset()
 		sg, err := New(&Options{RecordResponseBody: true})
