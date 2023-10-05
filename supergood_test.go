@@ -19,8 +19,6 @@ var errors []*errorReport
 var broken bool
 var twiceBroken bool
 
-//var clientChannel = make(chan int)
-
 func reset() {
 	events = []*event{}
 	errors = []*errorReport{}
