@@ -31,18 +31,18 @@ var clientSecret = "test_client_secret"
 
 type mockRoundTripper struct {
 	DefaultClient     *http.Client
-	mockServerChannel *chan int
+	mockServerChannel chan int
 }
 
 func (mrt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	go func() {
-		*mrt.mockServerChannel <- 1
+		mrt.mockServerChannel <- 1
 	}()
 	return http.DefaultTransport.RoundTrip(req)
 }
 
 // mock client to test wrapped client behavior
-func mockWrapClient(client *http.Client, ch *chan int) *http.Client {
+func mockWrapClient(client *http.Client, ch chan int) *http.Client {
 	client.Transport = &mockRoundTripper{
 		DefaultClient:     client,
 		mockServerChannel: ch,
@@ -425,12 +425,20 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("tesing http clients passed as options", func(t *testing.T) {
 		mockBaseClient := &http.Client{}
-		mockServerChannel := make(chan int)
+		mockServerChannel := make(chan int, 2)
 		options := &Options{
-			HTTPClient: mockWrapClient(mockBaseClient, &mockServerChannel),
+			HTTPClient: mockWrapClient(mockBaseClient, mockServerChannel),
 		}
 		echo(t, options)
-		val := <-mockServerChannel
-		require.Equal(t, val, 1)
+
+		count := 0
+		for len(mockServerChannel) > 0 {
+			<-mockServerChannel
+			count++
+		}
+		// Two calls get tracked by the base client. One for the initial mock request
+		// and another tracking the call to the supergood backend
+		require.Equal(t, count, 2)
+		close(mockServerChannel)
 	})
 }
