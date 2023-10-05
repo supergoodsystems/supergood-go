@@ -51,7 +51,12 @@ func New(o *Options) (*Service, error) {
 		close:   make(chan chan error),
 	}
 
-	sg.DefaultClient = sg.Wrap(http.DefaultClient)
+	client := http.DefaultClient
+	if sg.options.HTTPClient != nil {
+		client = sg.options.HTTPClient
+	}
+
+	sg.DefaultClient = sg.Wrap(client)
 
 	sg.reset()
 	go sg.loop()
@@ -201,6 +206,7 @@ func (sg *Service) post(path string, body any) error {
 	}
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(sg.options.ClientID+":"+sg.options.ClientSecret)))
 	req.Header.Set("Content-Type", "application/json")
+
 	resp, err := sg.options.HTTPClient.Do(req)
 	if err != nil {
 		return err

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -18,6 +19,7 @@ var events []*event
 var errors []*errorReport
 var broken bool
 var twiceBroken bool
+var clientChannel = make(chan int)
 
 func reset() {
 	events = []*event{}
@@ -26,6 +28,27 @@ func reset() {
 
 var clientID = "test_client_id"
 var clientSecret = "test_client_secret"
+
+type mockRoundTripper struct {
+	DefaultClient *http.Client
+}
+
+func (mrt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	fmt.Println("sending to channel")
+	go func() {
+		clientChannel <- 1
+	}()
+	fmt.Println("sent to channel")
+	return mrt.DefaultClient.Transport.RoundTrip(req)
+}
+
+// mock client to test wrapped client behavior
+func mockWrapClient(client *http.Client) *http.Client {
+	client.Transport = &mockRoundTripper{
+		DefaultClient: client,
+	}
+	return client
+}
 
 // boot up a server on an unused local port and return
 // http://localhost:<port>
@@ -150,6 +173,18 @@ func Test_Supergood(t *testing.T) {
 	echo := func(t *testing.T, o *Options) {
 		echoBody(t, o, []byte("test-body"))
 	}
+
+	t.Run("wrapped Client", func(t *testing.T) {
+		options := &Options{
+			HTTPClient: mockWrapClient(http.DefaultClient),
+		}
+		fmt.Println("111")
+		echo(t, options)
+		fmt.Println("HERE BEFORE")
+		val := <-clientChannel
+		fmt.Println("HERE AFTERE")
+		require.Equal(t, val, 1)
+	})
 
 	t.Run("default", func(t *testing.T) {
 		echo(t, &Options{RecordResponseBody: false})
