@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -19,7 +18,8 @@ var events []*event
 var errors []*errorReport
 var broken bool
 var twiceBroken bool
-var clientChannel = make(chan int)
+
+//var clientChannel = make(chan int)
 
 func reset() {
 	events = []*event{}
@@ -30,22 +30,22 @@ var clientID = "test_client_id"
 var clientSecret = "test_client_secret"
 
 type mockRoundTripper struct {
-	DefaultClient *http.Client
+	DefaultClient     *http.Client
+	mockServerChannel *chan int
 }
 
 func (mrt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	fmt.Println("sending to channel")
 	go func() {
-		clientChannel <- 1
+		*mrt.mockServerChannel <- 1
 	}()
-	fmt.Println("sent to channel")
-	return mrt.DefaultClient.Transport.RoundTrip(req)
+	return http.DefaultTransport.RoundTrip(req)
 }
 
 // mock client to test wrapped client behavior
-func mockWrapClient(client *http.Client) *http.Client {
+func mockWrapClient(client *http.Client, ch *chan int) *http.Client {
 	client.Transport = &mockRoundTripper{
-		DefaultClient: client,
+		DefaultClient:     client,
+		mockServerChannel: ch,
 	}
 	return client
 }
@@ -173,18 +173,6 @@ func Test_Supergood(t *testing.T) {
 	echo := func(t *testing.T, o *Options) {
 		echoBody(t, o, []byte("test-body"))
 	}
-
-	t.Run("wrapped Client", func(t *testing.T) {
-		options := &Options{
-			HTTPClient: mockWrapClient(http.DefaultClient),
-		}
-		fmt.Println("111")
-		echo(t, options)
-		fmt.Println("HERE BEFORE")
-		val := <-clientChannel
-		fmt.Println("HERE AFTERE")
-		require.Equal(t, val, 1)
-	})
 
 	t.Run("default", func(t *testing.T) {
 		echo(t, &Options{RecordResponseBody: false})
@@ -433,5 +421,16 @@ func Test_Supergood(t *testing.T) {
 		require.Error(t, logErrs[0], "/post/events")
 		require.Error(t, logErrs[1], "/post/errors")
 		sg.Close()
+	})
+
+	t.Run("tesing http clients passed as options", func(t *testing.T) {
+		mockBaseClient := &http.Client{}
+		mockServerChannel := make(chan int)
+		options := &Options{
+			HTTPClient: mockWrapClient(mockBaseClient, &mockServerChannel),
+		}
+		echo(t, options)
+		val := <-mockServerChannel
+		require.Equal(t, val, 1)
 	})
 }
