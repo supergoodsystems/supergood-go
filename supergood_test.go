@@ -210,7 +210,6 @@ func Test_Supergood(t *testing.T) {
 		require.NoError(t, sg.Close())
 		require.Len(t, events, 1)
 		require.Equal(t, allowedUrl, events[0].Request.URL)
-		// echo(t, &Options{AllowedDomains: allowedDomains})
 	})
 
 	t.Run("redacting nested string values", func(t *testing.T) {
@@ -425,7 +424,8 @@ func Test_Supergood(t *testing.T) {
 		mockBaseClient := &http.Client{}
 		mockServerChannel := make(chan int, 2)
 		options := &Options{
-			HTTPClient: mockWrapClient(mockBaseClient, mockServerChannel),
+			HTTPClient:         mockWrapClient(mockBaseClient, mockServerChannel),
+			RecordResponseBody: true,
 		}
 		echo(t, options)
 
@@ -438,5 +438,8 @@ func Test_Supergood(t *testing.T) {
 		// and another tracking the call to the supergood backend
 		require.Equal(t, count, 2)
 		close(mockServerChannel)
+
+		require.Len(t, events, 1)
+		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
 	})
 }
