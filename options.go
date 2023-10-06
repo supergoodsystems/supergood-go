@@ -31,6 +31,10 @@ type Options struct {
 	// (defaults to an empty map)
 	IncludeSpecifiedRequestBodyKeys map[string]bool
 
+	// SkipRedaction allows content from an event payload to be passed to the supergood system for
+	// finer grain anomoly detection
+	SkipRedaction bool
+
 	// RecordResponseBody additionally sends the body of responses to supergood for debugging.
 	// Defaults to false, if set true all values will be redacted and hashed unless specified
 	RecordResponseBody bool

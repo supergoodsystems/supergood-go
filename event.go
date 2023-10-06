@@ -49,7 +49,9 @@ func newRequest(id string, r *http.Request, options *Options) *request {
 
 	if options.RecordRequestBody {
 		body, r.Body = duplicateBody(r.Body)
-		body = redactValues(body, options.IncludeSpecifiedRequestBodyKeys)
+		if !options.SkipRedaction {
+			body = redactValues(body, options.IncludeSpecifiedRequestBodyKeys)
+		}
 	}
 	req := &request{
 		ID:          id,
@@ -84,7 +86,9 @@ func newResponse(res *http.Response, err error, options *Options) *response {
 
 	if options.RecordResponseBody {
 		body, res.Body = duplicateBody(res.Body)
-		body = redactValues(body, options.IncludeSpecifiedResponseBodyKeys)
+		if !options.SkipRedaction {
+			body = redactValues(body, options.IncludeSpecifiedResponseBodyKeys)
+		}
 	}
 	return &response{
 		Headers:     headersToMap(res.Header),
