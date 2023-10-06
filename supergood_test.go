@@ -442,4 +442,10 @@ func Test_Supergood(t *testing.T) {
 		require.Len(t, events, 1)
 		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
 	})
+
+	t.Run("SkipRedaction=true", func(t *testing.T) {
+		echo(t, &Options{RecordResponseBody: true, SkipRedaction: true})
+		require.Len(t, events, 1)
+		require.Equal(t, "test-body", events[0].Response.Body)
+	})
 }
