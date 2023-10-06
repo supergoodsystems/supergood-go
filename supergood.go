@@ -51,7 +51,12 @@ func New(o *Options) (*Service, error) {
 		close:   make(chan chan error),
 	}
 
-	sg.DefaultClient = sg.Wrap(http.DefaultClient)
+	client := http.DefaultClient
+	if sg.options.HTTPClient != nil {
+		client = sg.options.HTTPClient
+	}
+
+	sg.DefaultClient = sg.Wrap(client)
 
 	sg.reset()
 	go sg.loop()

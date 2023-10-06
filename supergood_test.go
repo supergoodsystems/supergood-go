@@ -27,6 +27,27 @@ func reset() {
 var clientID = "test_client_id"
 var clientSecret = "test_client_secret"
 
+type mockRoundTripper struct {
+	DefaultClient     *http.Client
+	mockServerChannel chan int
+}
+
+func (mrt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	go func() {
+		mrt.mockServerChannel <- 1
+	}()
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+// mock client to test wrapped client behavior
+func mockWrapClient(client *http.Client, ch chan int) *http.Client {
+	client.Transport = &mockRoundTripper{
+		DefaultClient:     client,
+		mockServerChannel: ch,
+	}
+	return client
+}
+
 // boot up a server on an unused local port and return
 // http://localhost:<port>
 func mockServer(t *testing.T, h http.HandlerFunc) string {
@@ -189,7 +210,6 @@ func Test_Supergood(t *testing.T) {
 		require.NoError(t, sg.Close())
 		require.Len(t, events, 1)
 		require.Equal(t, allowedUrl, events[0].Request.URL)
-		// echo(t, &Options{AllowedDomains: allowedDomains})
 	})
 
 	t.Run("redacting nested string values", func(t *testing.T) {
@@ -398,5 +418,28 @@ func Test_Supergood(t *testing.T) {
 		require.Error(t, logErrs[0], "/post/events")
 		require.Error(t, logErrs[1], "/post/errors")
 		sg.Close()
+	})
+
+	t.Run("tesing http clients passed as options", func(t *testing.T) {
+		mockBaseClient := &http.Client{}
+		mockServerChannel := make(chan int, 2)
+		options := &Options{
+			HTTPClient:         mockWrapClient(mockBaseClient, mockServerChannel),
+			RecordResponseBody: true,
+		}
+		echo(t, options)
+
+		count := 0
+		for len(mockServerChannel) > 0 {
+			<-mockServerChannel
+			count++
+		}
+		// Two calls get tracked by the base client. One for the initial mock request
+		// and another tracking the call to the supergood backend
+		require.Equal(t, count, 2)
+		close(mockServerChannel)
+
+		require.Len(t, events, 1)
+		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
 	})
 }
