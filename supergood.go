@@ -127,15 +127,19 @@ func (sg *Service) loop() {
 }
 
 func (sg *Service) flush(force bool) error {
-	entries := sg.reset()
-	toSend := []*event{}
+	sg.mutex.Lock()
+	defer sg.mutex.Unlock()
 
-	for _, entry := range entries {
+	toSend := []*event{}
+	for key, entry := range sg.queue {
 		if entry.Response == nil && !force {
 			continue
 		}
+		delete(sg.queue, key)
 		toSend = append(toSend, entry)
 	}
+	fmt.Printf("queue-length: %d\n", len(sg.queue))
+	fmt.Printf("flushing: %d\n", len(toSend))
 
 	if len(toSend) == 0 {
 		return nil
