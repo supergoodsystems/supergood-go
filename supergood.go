@@ -138,8 +138,6 @@ func (sg *Service) flush(force bool) error {
 		delete(sg.queue, key)
 		toSend = append(toSend, entry)
 	}
-	fmt.Printf("queue-length: %d\n", len(sg.queue))
-	fmt.Printf("flushing: %d\n", len(toSend))
 
 	if len(toSend) == 0 {
 		return nil
