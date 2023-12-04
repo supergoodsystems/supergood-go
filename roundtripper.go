@@ -12,7 +12,7 @@ type roundTripper struct {
 }
 
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if !rt.sg.options.SelectRequests(req) || rt.sg.shouldIgnoreRequestRemoteConfig() {
+	if !rt.sg.options.SelectRequests(req) || rt.sg.shouldIgnoreRequestRemoteConfig(req) {
 		return rt.next.RoundTrip(req)
 	}
 

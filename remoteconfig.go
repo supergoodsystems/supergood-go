@@ -111,17 +111,12 @@ func (sg *Service) initRemoteConfig() error {
 	return sg.fetchRemoteConfig()
 }
 
-func (sg *Service) shouldIgnoreRequestRemoteConfig(req *request) bool {
-	url, err := url.Parse(req.URL)
-	if err != nil {
-		sg.handleError(err)
-		return false
-	}
-
+func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 	shouldIgnore := false
-	endpoints := sg.remoteConfigCache[url.Hostname()]
-	for _, endpoint := range endpoints {
+	baseUrlHostName := strings.TrimPrefix(req.URL.Hostname(), "www.")
+	endpoints := sg.remoteConfigCache[baseUrlHostName]
 
+	for _, endpoint := range endpoints {
 		testVal := getNestedFieldValue(req, endpoint.Location)
 		if testVal == nil {
 			continue
