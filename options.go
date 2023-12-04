@@ -63,15 +63,22 @@ type Options struct {
 	// FlushInterval configures how frequently supergood sends batches of
 	// logs to the API. (defaults to 1 * time.Second)
 	FlushInterval time.Duration
+
 	// OnError allows you to handle errors uploading events to supergood
 	// (by default errors are logged to os.Stderr)
 	OnError func(error)
+
 	// The HTTPClient to use to make requests to Supergood's API
 	// (defaults to http.DefaultClient)
 	HTTPClient *http.Client
 
 	// Log Level to use for logging, debug will print flushes
 	LogLevel string
+
+	// RemoteConfigFetchInterval configures how frequently supergood retrieves
+	// the remote config which is used to ignore / accept traffic from client endpoints
+	// as well as mask sensitive keys
+	RemoteConfigFetchInterval time.Duration
 }
 
 func (o *Options) parse() (*Options, error) {
@@ -170,6 +177,13 @@ func (o *Options) parse() (*Options, error) {
 				return true
 			}
 		}
+	}
+
+	if o.RemoteConfigFetchInterval == 0 {
+		o.FlushInterval = 10 * time.Second
+	}
+	if o.RemoteConfigFetchInterval < time.Millisecond {
+		return nil, fmt.Errorf("supergood: RemoteConfigFetchInterval too small, did you forget to multiply by time.Second?")
 	}
 
 	return o, nil
