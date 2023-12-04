@@ -1,14 +1,18 @@
 package supergood
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"reflect"
 	"regexp"
-	"strings"
 	"time"
+
+	"github.com/supergoodsystems/supergood-go/domainutils"
 )
 
 type remoteConfig struct {
@@ -70,15 +74,33 @@ func (sg *Service) fetchRemoteConfig() error {
 		return err
 	}
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(sg.options.ClientID+":"+sg.options.ClientSecret)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := sg.options.HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == 401 {
+		return fmt.Errorf("supergood: invalid ClientID or ClientSecret")
+	} else if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		body, _ := io.ReadAll(resp.Body)
+		message := string(body)
+		return fmt.Errorf("supergood: got HTTP %v posting to /config with error: %s", resp.Status, message)
+	}
+
 	var remoteConfigArray []remoteConfig
-	json.NewDecoder(resp.Body).Decode(&remoteConfigArray)
-	remoteConfigMap := map[string][]endpointCacheVal{}
+	err = json.NewDecoder(resp.Body).Decode(&remoteConfigArray)
+	if err != nil {
+		return err
+	}
+
+	remoteConfigMap := map[string]*[]endpointCacheVal{}
 	for _, config := range remoteConfigArray {
 		cacheVal := []endpointCacheVal{}
 		for _, endpoint := range config.Endpoints {
@@ -86,6 +108,9 @@ func (sg *Service) fetchRemoteConfig() error {
 			// from supergood ingest. We only need to track those endpoints that
 			// should be ignored. All others that arent in remoteConfigMap can be allowed
 			if endpoint.EndpointConfiguration.Action != "Ignore" {
+				continue
+			}
+			if endpoint.MatchingRegex.Regex == "" || endpoint.MatchingRegex.Location == "" {
 				continue
 			}
 			regex, err := regexp.Compile(endpoint.MatchingRegex.Regex)
@@ -100,7 +125,7 @@ func (sg *Service) fetchRemoteConfig() error {
 			cacheVal = append(cacheVal, endpointCacheVal)
 		}
 
-		remoteConfigMap[config.Domain] = cacheVal
+		remoteConfigMap[config.Domain] = &cacheVal
 	}
 
 	sg.remoteConfigCache = remoteConfigMap
@@ -112,16 +137,25 @@ func (sg *Service) initRemoteConfig() error {
 }
 
 func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
-	shouldIgnore := false
-	baseUrlHostName := strings.TrimPrefix(req.URL.Hostname(), "www.")
-	endpoints := sg.remoteConfigCache[baseUrlHostName]
+	domain := domainutils.Domain(req.Host)
+	if domain == "" {
+		domain = domainutils.Subdomain(req.Host)
+	}
+	if domain == "" {
+		return false
+	}
 
-	for _, endpoint := range endpoints {
-		testVal := getNestedFieldValue(req, endpoint.Location)
-		if testVal == nil {
+	endpoints := sg.remoteConfigCache[domain]
+	if endpoints == nil {
+		return false
+	}
+
+	for _, endpoint := range *endpoints {
+		testVal, err := marshalEndpointLocationValue(req, endpoint.Location)
+		if err != nil {
+			sg.options.OnError(err)
 			continue
 		}
-
 		testByteArray := []byte(fmt.Sprintf("%v", testVal))
 		match := endpoint.Regex.Match(testByteArray)
 		if match {
@@ -129,30 +163,29 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 			return true
 		}
 	}
-	return shouldIgnore
+	return false
 }
 
-// getNestedFieldValue retrieves the nested field value of a struct based on the given location string.
-func getNestedFieldValue(obj interface{}, location string) interface{} {
-	// Split the location string into nested field names
-	fieldNames := strings.Split(location, ".")
-
-	// Use reflection to navigate through the nested fields
-	value := reflect.ValueOf(obj)
-	for _, fieldName := range fieldNames {
-		if value.Kind() == reflect.Ptr {
-			value = value.Elem()
+func marshalEndpointLocationValue(req *http.Request, location string) (string, error) {
+	switch location {
+	case "subdomain":
+		return req.URL.Host, nil
+	case "url":
+		return req.URL.String(), nil
+	case "path":
+		return req.URL.Path, nil
+	case "domain":
+		return req.URL.Host, nil
+	case "request_body":
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			return "", err
 		}
-
-		// Get the field by name
-		field := value.FieldByName(fieldName)
-		if !field.IsValid() {
-			return nil
-		}
-
-		// Update the value to the nested field's value
-		value = field
+		req.Body = io.NopCloser(bytes.NewBuffer(body))
+		return string(body), nil
+	case "request_headers":
+		return fmt.Sprint(req.Header), nil
+	default:
+		return "", errors.New("invalid location parameter for RegExp matching")
 	}
-
-	return value.Interface()
 }

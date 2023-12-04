@@ -180,7 +180,7 @@ func (o *Options) parse() (*Options, error) {
 	}
 
 	if o.RemoteConfigFetchInterval == 0 {
-		o.FlushInterval = 10 * time.Second
+		o.RemoteConfigFetchInterval = 10 * time.Second
 	}
 	if o.RemoteConfigFetchInterval < time.Millisecond {
 		return nil, fmt.Errorf("supergood: RemoteConfigFetchInterval too small, did you forget to multiply by time.Second?")

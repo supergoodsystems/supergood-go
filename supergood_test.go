@@ -15,13 +15,13 @@ import (
 )
 
 var events []*event
-var errors []*errorReport
+var errorReports []*errorReport
 var broken bool
 var twiceBroken bool
 
 func reset() {
 	events = []*event{}
-	errors = []*errorReport{}
+	errorReports = []*errorReport{}
 }
 
 var clientID = "test_client_id"
@@ -88,7 +88,7 @@ func mockApiServer(t *testing.T) string {
 			newErr := &errorReport{}
 			err := json.NewDecoder(r.Body).Decode(&newErr)
 			require.NoError(t, err)
-			errors = append(errors, newErr)
+			errorReports = append(errorReports, newErr)
 
 			rw.Write([]byte(`{"message":"Success"}`))
 			return
@@ -371,11 +371,11 @@ func Test_Supergood(t *testing.T) {
 		broken = true
 		defer func() { broken = false }()
 		echo(t, &Options{})
-		require.Len(t, errors, 1)
-		require.Equal(t, "supergood: got HTTP 500 Internal Server Error posting to /events", errors[0].Message)
-		require.Equal(t, "supergood-go", errors[0].Payload.Name)
+		require.Len(t, errorReports, 1)
+		require.Equal(t, "supergood: got HTTP 500 Internal Server Error posting to /events", errorReports[0].Message)
+		require.Equal(t, "supergood-go", errorReports[0].Payload.Name)
 		// cannot be read in tests
-		require.Equal(t, "unknown", errors[0].Payload.Version)
+		require.Equal(t, "unknown", errorReports[0].Payload.Version)
 	})
 
 	t.Run("handling a broken error handler", func(t *testing.T) {
