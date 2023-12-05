@@ -78,7 +78,7 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if twiceBroken {
+		if twiceBroken && (r.URL.Path != "/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
 			return
@@ -94,7 +94,7 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if broken {
+		if broken && (r.URL.Path != "/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
 			return
@@ -107,6 +107,13 @@ func mockApiServer(t *testing.T) string {
 			events = append(events, newEvents...)
 
 			rw.Write([]byte(`{"message":"Success"}`))
+			return
+		}
+
+		if r.URL.Path == "/config" && r.Method == "GET" {
+			remoteConfig := []remoteConfig{}
+			bytes, _ := json.Marshal(remoteConfig)
+			rw.Write(bytes)
 			return
 		}
 
@@ -394,30 +401,18 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("handling invalid client id", func(t *testing.T) {
 		var logErr error
-		sg, err := New(&Options{OnError: func(e error) { logErr = e }, ClientID: "oops"})
-		require.NoError(t, err)
-		sg.DefaultClient.Get(host + "/echo")
-		err = sg.Close()
+		_, err := New(&Options{OnError: func(e error) { logErr = e }, ClientID: "oops"})
 		require.Error(t, err, "invalid ClientID")
 		require.NoError(t, logErr)
 	})
 
 	t.Run("handling broken base url", func(t *testing.T) {
-		var logErrs []error
 
-		sg, err := New(&Options{
-			OnError:       func(e error) { logErrs = append(logErrs, e) },
+		_, err := New(&Options{
 			BaseURL:       "https://localhost:1",
 			FlushInterval: 1 * time.Millisecond,
 		})
-		require.NoError(t, err)
-		sg.DefaultClient.Get(host + "/echo")
-		time.Sleep(50 * time.Millisecond)
-
-		require.Len(t, logErrs, 2)
-		require.Error(t, logErrs[0], "/post/events")
-		require.Error(t, logErrs[1], "/post/errors")
-		sg.Close()
+		require.Error(t, err, "connection refused")
 	})
 
 	t.Run("tesing http clients passed as options", func(t *testing.T) {
@@ -434,9 +429,11 @@ func Test_Supergood(t *testing.T) {
 			<-mockServerChannel
 			count++
 		}
-		// Two calls get tracked by the base client. One for the initial mock request
+		// Three calls get tracked by the base client.
+		// First to fetch the remote config
+		// One for the initial mock request
 		// and another tracking the call to the supergood backend
-		require.Equal(t, count, 2)
+		require.Equal(t, count, 3)
 		close(mockServerChannel)
 
 		require.Len(t, events, 1)

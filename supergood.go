@@ -49,8 +49,9 @@ func New(o *Options) (*Service, error) {
 	}
 
 	sg := &Service{
-		options: o,
-		close:   make(chan chan error),
+		options:           o,
+		close:             make(chan chan error),
+		remoteConfigClose: make(chan struct{}),
 	}
 
 	client := http.DefaultClient
@@ -90,10 +91,10 @@ func (sg *Service) Wrap(client *http.Client) *http.Client {
 // and shuts down the service.
 func (sg *Service) Close() error {
 	ch := make(chan error)
-	sg.remoteConfigClose <- struct{}{}
 	sg.close <- ch
-	close(sg.remoteConfigClose)
+	sg.remoteConfigClose <- struct{}{}
 	close(sg.close)
+	close(sg.remoteConfigClose)
 	return <-ch
 }
 
