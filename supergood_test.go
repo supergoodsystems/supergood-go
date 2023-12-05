@@ -111,7 +111,26 @@ func mockApiServer(t *testing.T) string {
 		}
 
 		if r.URL.Path == "/config" && r.Method == "GET" {
-			remoteConfig := []remoteConfig{}
+			remoteConfig := []remoteConfig{
+				{
+					Id:     "test-id",
+					Domain: "ignored-domain.com",
+					Name:   "Ignore me domain",
+					Endpoints: []endpoint{
+						{
+							Id:   "test-endpoint-id",
+							Name: "ignore me endpoint",
+							MatchingRegex: matchingRegex{
+								Location: "path",
+								Regex:    "/ignore-me",
+							},
+							EndpointConfiguration: endpointConfiguration{
+								Action: "Ignore",
+							},
+						},
+					},
+				},
+			}
 			bytes, _ := json.Marshal(remoteConfig)
 			rw.Write(bytes)
 			return
@@ -217,6 +236,15 @@ func Test_Supergood(t *testing.T) {
 		require.NoError(t, sg.Close())
 		require.Len(t, events, 1)
 		require.Equal(t, allowedUrl, events[0].Request.URL)
+	})
+
+	t.Run("Ignored Endpoints", func(t *testing.T) {
+		reset()
+		sg, err := New(&Options{})
+		require.NoError(t, err)
+		sg.DefaultClient.Get("https://ignored-domain.com/ignore-me")
+		require.NoError(t, sg.Close())
+		require.Len(t, events, 0)
 	})
 
 	t.Run("redacting nested string values", func(t *testing.T) {
@@ -375,6 +403,7 @@ func Test_Supergood(t *testing.T) {
 	})
 
 	t.Run("error handling on close", func(t *testing.T) {
+		reset()
 		broken = true
 		defer func() { broken = false }()
 		echo(t, &Options{})

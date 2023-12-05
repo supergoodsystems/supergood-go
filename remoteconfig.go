@@ -126,7 +126,6 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 	if endpoints == nil {
 		return false
 	}
-
 	for _, endpoint := range *endpoints {
 		testVal, err := marshalEndpointLocationValue(req, endpoint.Location)
 		if err != nil {
