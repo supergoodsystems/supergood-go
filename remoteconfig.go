@@ -55,6 +55,10 @@ type endpointCacheVal struct {
 	Action   string
 }
 
+func (sg *Service) initRemoteConfig() error {
+	return sg.fetchRemoteConfig()
+}
+
 func (sg *Service) refreshRemoteConfig() {
 	for {
 		select {
@@ -100,40 +104,13 @@ func (sg *Service) fetchRemoteConfig() error {
 		return err
 	}
 
-	remoteConfigMap := map[string]*[]endpointCacheVal{}
-	for _, config := range remoteConfigArray {
-		cacheVal := []endpointCacheVal{}
-		for _, endpoint := range config.Endpoints {
-			// NOTE: the remote config today is only used to block requests
-			// from supergood ingest. We only need to track those endpoints that
-			// should be ignored. All others that arent in remoteConfigMap can be allowed
-			if endpoint.EndpointConfiguration.Action != "Ignore" {
-				continue
-			}
-			if endpoint.MatchingRegex.Regex == "" || endpoint.MatchingRegex.Location == "" {
-				continue
-			}
-			regex, err := regexp.Compile(endpoint.MatchingRegex.Regex)
-			if err != nil {
-				return err
-			}
-			endpointCacheVal := endpointCacheVal{
-				Regex:    regex,
-				Location: endpoint.MatchingRegex.Location,
-				Action:   endpoint.EndpointConfiguration.Action,
-			}
-			cacheVal = append(cacheVal, endpointCacheVal)
-		}
-
-		remoteConfigMap[config.Domain] = &cacheVal
+	remoteConfigCache, err := createRemoteConfigCache(remoteConfigArray)
+	if err != nil {
+		return err
 	}
 
-	sg.remoteConfigCache = remoteConfigMap
+	sg.remoteConfigCache = remoteConfigCache
 	return nil
-}
-
-func (sg *Service) initRemoteConfig() error {
-	return sg.fetchRemoteConfig()
 }
 
 func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
@@ -166,6 +143,38 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 	return false
 }
 
+func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string]*[]endpointCacheVal, error) {
+	remoteConfigMap := map[string]*[]endpointCacheVal{}
+	for _, config := range remoteConfigArray {
+		cacheVal := []endpointCacheVal{}
+		for _, endpoint := range config.Endpoints {
+			// NOTE: the remote config today is only used to block requests
+			// from supergood ingest. We only need to track those endpoints that
+			// should be ignored. All others that arent in remoteConfigMap can be allowed
+			if endpoint.EndpointConfiguration.Action != "Ignore" {
+				continue
+			}
+			if endpoint.MatchingRegex.Regex == "" || endpoint.MatchingRegex.Location == "" {
+				continue
+			}
+			regex, err := regexp.Compile(endpoint.MatchingRegex.Regex)
+			if err != nil {
+				return nil, err
+			}
+			endpointCacheVal := endpointCacheVal{
+				Regex:    regex,
+				Location: endpoint.MatchingRegex.Location,
+				Action:   endpoint.EndpointConfiguration.Action,
+			}
+			cacheVal = append(cacheVal, endpointCacheVal)
+		}
+		remoteConfigMap[config.Domain] = &cacheVal
+	}
+	return remoteConfigMap, nil
+}
+
+// mashalEndpointLocation value takes an endpoint location, which is used to uniquely classify
+// a request and stringifies the request object at that location
 func marshalEndpointLocationValue(req *http.Request, location string) (string, error) {
 	switch location {
 	case "subdomain":
