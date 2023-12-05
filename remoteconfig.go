@@ -126,7 +126,7 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 	if endpoints == nil {
 		return false
 	}
-	for _, endpoint := range *endpoints {
+	for _, endpoint := range endpoints {
 		testVal, err := marshalEndpointLocationValue(req, endpoint.Location)
 		if err != nil {
 			sg.options.OnError(err)
@@ -142,8 +142,8 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 	return false
 }
 
-func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string]*[]endpointCacheVal, error) {
-	remoteConfigMap := map[string]*[]endpointCacheVal{}
+func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string][]endpointCacheVal, error) {
+	remoteConfigMap := map[string][]endpointCacheVal{}
 	for _, config := range remoteConfigArray {
 		cacheVal := []endpointCacheVal{}
 		for _, endpoint := range config.Endpoints {
@@ -167,7 +167,7 @@ func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string]*[]en
 			}
 			cacheVal = append(cacheVal, endpointCacheVal)
 		}
-		remoteConfigMap[config.Domain] = &cacheVal
+		remoteConfigMap[config.Domain] = cacheVal
 	}
 	return remoteConfigMap, nil
 }

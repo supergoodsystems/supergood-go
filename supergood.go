@@ -36,7 +36,7 @@ type Service struct {
 	mutex             sync.Mutex
 	queue             map[string]*event
 	close             chan chan error
-	remoteConfigCache map[string]*[]endpointCacheVal
+	remoteConfigCache map[string][]endpointCacheVal
 	remoteConfigClose chan struct{}
 }
 
@@ -158,7 +158,7 @@ func (sg *Service) reset() map[string]*event {
 
 	entries := sg.queue
 	sg.queue = map[string]*event{}
-	sg.remoteConfigCache = map[string]*[]endpointCacheVal{}
+	sg.remoteConfigCache = map[string][]endpointCacheVal{}
 	return entries
 }
 
