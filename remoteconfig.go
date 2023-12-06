@@ -50,7 +50,7 @@ type sensitiveKeys struct {
 }
 
 type endpointCacheVal struct {
-	Regex         *regexp.Regexp
+	Regex         regexp.Regexp
 	Location      string
 	Action        string
 	SensitiveKeys []sensitiveKeys
@@ -158,7 +158,7 @@ func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string][]end
 				return nil, err
 			}
 			endpointCacheVal := endpointCacheVal{
-				Regex:         regex,
+				Regex:         *regex,
 				Location:      endpoint.MatchingRegex.Location,
 				Action:        endpoint.EndpointConfiguration.Action,
 				SensitiveKeys: endpoint.EndpointConfiguration.SensitiveKeys,

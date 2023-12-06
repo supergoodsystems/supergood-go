@@ -311,6 +311,7 @@ func Test_Supergood(t *testing.T) {
 	t.Run("RedactHeaders", func(t *testing.T) {
 		echo(t, &Options{IncludeSpecifiedRequestHeaderKeys: map[string]bool{"AUTH-WAS": true}})
 		require.Len(t, events, 1)
+		require.NotNil(t, events[0].Request)
 		require.Equal(t, events[0].Request.Headers["Authorization"], "redacted:dba430468af6b5fc3c22facf6dc871ce6e3801b9")
 		require.Equal(t, events[0].Response.Headers["Auth-Was"], "test-auth")
 	})
@@ -332,6 +333,7 @@ func Test_Supergood(t *testing.T) {
 		defer func() { clock = time.Now }()
 		echoBody(t, &Options{}, []byte("set-clock"))
 
+		require.Len(t, events, 1)
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 01, 0, time.UTC), events[0].Request.RequestedAt)
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 03, 0, time.UTC), events[0].Response.RespondedAt)
 		require.Equal(t, 2000, events[0].Response.Duration)
@@ -362,6 +364,7 @@ func Test_Supergood(t *testing.T) {
 		require.NoError(t, sg.Close())
 
 		require.Len(t, events, 1)
+		require.NotNil(t, events[0].Response)
 		require.Equal(t, 200, events[0].Response.Status)
 	})
 
