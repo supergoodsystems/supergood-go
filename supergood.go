@@ -62,6 +62,8 @@ func New(o *Options) (*Service, error) {
 	sg.DefaultClient = sg.Wrap(client)
 
 	sg.reset()
+	// TODO: dont error on remote config initalization
+	// Do not send events unless we've successfully fetched remote config
 	err = sg.initRemoteConfig()
 	if err != nil {
 		return nil, err

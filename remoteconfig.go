@@ -139,7 +139,6 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 		testByteArray := []byte(fmt.Sprintf("%v", testVal))
 		match := endpoint.Regex.Match(testByteArray)
 		if match {
-			// Any value in remote config cache should not be ingested
 			return true
 		}
 	}
@@ -151,12 +150,6 @@ func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string][]end
 	for _, config := range remoteConfigArray {
 		cacheVal := []endpointCacheVal{}
 		for _, endpoint := range config.Endpoints {
-			// NOTE: the remote config today is only used to block requests
-			// from supergood ingest. We only need to track those endpoints that
-			// should be ignored. All others that arent in remoteConfigMap can be allowed
-			if endpoint.EndpointConfiguration.Action != "Ignore" {
-				continue
-			}
 			if endpoint.MatchingRegex.Regex == "" || endpoint.MatchingRegex.Location == "" {
 				continue
 			}
@@ -202,8 +195,19 @@ func marshalEndpointLocation(req *http.Request, location string) (string, error)
 	return "", fmt.Errorf("unexpected location parameter for RegExp matching: %s", location)
 }
 
+// getHeaderValueAtLocation retrieves the header value string given a header key "location"
 func getHeaderValueAtLocation(headers http.Header, location string) (string, error) {
 	path := strings.Split(location, ".")
+	// location here is of form: request_header
+	if len(path) == 1 {
+		headerBytes, err := json.Marshal(headers)
+		if err != nil {
+			return "", err
+		}
+		return string(headerBytes), nil
+	}
+
+	// location here is of form: request_header.Client-Secret
 	if len(path) != 2 {
 		return "", fmt.Errorf("invalid header parameter for RegExp matching: %s", location)
 	}
@@ -211,15 +215,19 @@ func getHeaderValueAtLocation(headers http.Header, location string) (string, err
 
 }
 
-// getRequestBodyValueAtLocation retrieves the nested field value of a struct based on the given location string.
+// getRequestBodyValueAtLocation retrieves the nested field value of a struct based on the given "location"
 func getRequestBodyValueAtLocation(req *http.Request, location string) (string, error) {
+	path := strings.Split(location, ".")
+
+	// read in stream and write back to request body
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return "", err
 	}
 	req.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	if !json.Valid(body) {
+	// no nested field provided in location parameter (e.g. "request_body" instead of "request_body.field")
+	if len(path) == 1 || !json.Valid(body) {
 		return string(body), nil
 	}
 
@@ -229,7 +237,7 @@ func getRequestBodyValueAtLocation(req *http.Request, location string) (string, 
 		return "", err
 	}
 
-	path := strings.Split(location, ".")
+	path = path[1:]
 	for _, key := range path {
 		value, ok := nestedBody[key]
 		if !ok {
