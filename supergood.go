@@ -32,12 +32,13 @@ type Service struct {
 
 	DefaultClient *http.Client
 
-	options           *Options
-	mutex             sync.Mutex
-	queue             map[string]*event
-	close             chan chan error
-	remoteConfigCache map[string][]endpointCacheVal
-	remoteConfigClose chan struct{}
+	options                *Options
+	mutex                  sync.Mutex
+	queue                  map[string]*event
+	close                  chan chan error
+	remoteConfigCacheMutex sync.RWMutex
+	remoteConfigCache      map[string][]endpointCacheVal
+	remoteConfigClose      chan struct{}
 }
 
 // New creates a new supergood service.
