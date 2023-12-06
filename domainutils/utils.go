@@ -129,7 +129,7 @@ func stripURLParts(url string) string {
 	}
 
 	// Convert domain to unicode
-	if strings.Index(url, "xn--") != -1 {
+	if !strings.Contains(url, "xn--") {
 		var err error
 		url, err = idna.ToUnicode(url)
 		if err != nil {
