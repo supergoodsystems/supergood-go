@@ -110,6 +110,8 @@ func (sg *Service) fetchRemoteConfig() error {
 		return err
 	}
 
+	sg.remoteConfigCacheMutex.Lock()
+	defer sg.remoteConfigCacheMutex.Unlock()
 	sg.remoteConfigCache = remoteConfigCache
 	return nil
 }
@@ -122,6 +124,9 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 	if domain == "" {
 		return false
 	}
+
+	sg.remoteConfigCacheMutex.RLock()
+	defer sg.remoteConfigCacheMutex.RUnlock()
 
 	endpoints := sg.remoteConfigCache[domain]
 	if len(endpoints) == 0 {
