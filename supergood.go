@@ -32,10 +32,12 @@ type Service struct {
 
 	DefaultClient *http.Client
 
-	options *Options
-	mutex   sync.Mutex
-	queue   map[string]*event
-	close   chan chan error
+	options           *Options
+	mutex             sync.Mutex
+	queue             map[string]*event
+	close             chan chan error
+	remoteConfigCache map[string][]endpointCacheVal
+	remoteConfigClose chan struct{}
 }
 
 // New creates a new supergood service.
@@ -47,8 +49,9 @@ func New(o *Options) (*Service, error) {
 	}
 
 	sg := &Service{
-		options: o,
-		close:   make(chan chan error),
+		options:           o,
+		close:             make(chan chan error),
+		remoteConfigClose: make(chan struct{}),
 	}
 
 	client := http.DefaultClient
@@ -59,7 +62,15 @@ func New(o *Options) (*Service, error) {
 	sg.DefaultClient = sg.Wrap(client)
 
 	sg.reset()
+	// TODO: dont error on remote config initalization
+	// Do not send events unless we've successfully fetched remote config
+	err = sg.initRemoteConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	go sg.loop()
+	go sg.refreshRemoteConfig()
 	return sg, nil
 }
 
@@ -83,7 +94,9 @@ func (sg *Service) Wrap(client *http.Client) *http.Client {
 func (sg *Service) Close() error {
 	ch := make(chan error)
 	sg.close <- ch
+	sg.remoteConfigClose <- struct{}{}
 	close(sg.close)
+	close(sg.remoteConfigClose)
 	return <-ch
 }
 
@@ -109,18 +122,14 @@ func (sg *Service) loop() {
 		case closed = <-sg.close:
 			err := sg.flush(true)
 			if err != nil {
-				if err2 := sg.logError(err); err2 != nil {
-					sg.options.OnError(err2)
-				}
+				sg.handleError(err)
 			}
 			closed <- err
 			return
 		case <-time.After(sg.options.FlushInterval):
-			if err := sg.flush(false); err != nil {
-				sg.options.OnError(err)
-				if err2 := sg.logError(err); err2 != nil {
-					sg.options.OnError(err2)
-				}
+			err := sg.flush(false)
+			if err != nil {
+				sg.handleError(err)
 			}
 		}
 	}
@@ -151,7 +160,7 @@ func (sg *Service) reset() map[string]*event {
 
 	entries := sg.queue
 	sg.queue = map[string]*event{}
-
+	sg.remoteConfigCache = map[string][]endpointCacheVal{}
 	return entries
 }
 
@@ -221,4 +230,11 @@ func (sg *Service) post(path string, body any) error {
 	}
 
 	return nil
+}
+
+func (sg *Service) handleError(err error) {
+	sg.options.OnError(err)
+	if err2 := sg.logError(err); err2 != nil {
+		sg.options.OnError(err2)
+	}
 }

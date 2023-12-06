@@ -15,13 +15,13 @@ import (
 )
 
 var events []*event
-var errors []*errorReport
+var errorReports []*errorReport
 var broken bool
 var twiceBroken bool
 
 func reset() {
 	events = []*event{}
-	errors = []*errorReport{}
+	errorReports = []*errorReport{}
 }
 
 var clientID = "test_client_id"
@@ -78,7 +78,7 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if twiceBroken {
+		if twiceBroken && (r.URL.Path != "/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
 			return
@@ -88,13 +88,13 @@ func mockApiServer(t *testing.T) string {
 			newErr := &errorReport{}
 			err := json.NewDecoder(r.Body).Decode(&newErr)
 			require.NoError(t, err)
-			errors = append(errors, newErr)
+			errorReports = append(errorReports, newErr)
 
 			rw.Write([]byte(`{"message":"Success"}`))
 			return
 		}
 
-		if broken {
+		if broken && (r.URL.Path != "/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
 			return
@@ -107,6 +107,32 @@ func mockApiServer(t *testing.T) string {
 			events = append(events, newEvents...)
 
 			rw.Write([]byte(`{"message":"Success"}`))
+			return
+		}
+
+		if r.URL.Path == "/config" && r.Method == "GET" {
+			remoteConfig := []remoteConfig{
+				{
+					Id:     "test-id",
+					Domain: "ignored-domain.com",
+					Name:   "Ignore me domain",
+					Endpoints: []endpoint{
+						{
+							Id:   "test-endpoint-id",
+							Name: "ignore me endpoint",
+							MatchingRegex: matchingRegex{
+								Location: "path",
+								Regex:    "/ignore-me",
+							},
+							EndpointConfiguration: endpointConfiguration{
+								Action: "Ignore",
+							},
+						},
+					},
+				},
+			}
+			bytes, _ := json.Marshal(remoteConfig)
+			rw.Write(bytes)
 			return
 		}
 
@@ -212,6 +238,15 @@ func Test_Supergood(t *testing.T) {
 		require.Equal(t, allowedUrl, events[0].Request.URL)
 	})
 
+	t.Run("Ignored Endpoints", func(t *testing.T) {
+		reset()
+		sg, err := New(&Options{})
+		require.NoError(t, err)
+		sg.DefaultClient.Get("https://ignored-domain.com/ignore-me")
+		require.NoError(t, sg.Close())
+		require.Len(t, events, 0)
+	})
+
 	t.Run("redacting nested string values", func(t *testing.T) {
 		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
 		require.Len(t, events, 1)
@@ -276,6 +311,7 @@ func Test_Supergood(t *testing.T) {
 	t.Run("RedactHeaders", func(t *testing.T) {
 		echo(t, &Options{IncludeSpecifiedRequestHeaderKeys: map[string]bool{"AUTH-WAS": true}})
 		require.Len(t, events, 1)
+		require.NotNil(t, events[0].Request)
 		require.Equal(t, events[0].Request.Headers["Authorization"], "redacted:dba430468af6b5fc3c22facf6dc871ce6e3801b9")
 		require.Equal(t, events[0].Response.Headers["Auth-Was"], "test-auth")
 	})
@@ -297,6 +333,7 @@ func Test_Supergood(t *testing.T) {
 		defer func() { clock = time.Now }()
 		echoBody(t, &Options{}, []byte("set-clock"))
 
+		require.Len(t, events, 1)
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 01, 0, time.UTC), events[0].Request.RequestedAt)
 		require.Equal(t, time.Date(2023, 01, 01, 01, 01, 03, 0, time.UTC), events[0].Response.RespondedAt)
 		require.Equal(t, 2000, events[0].Response.Duration)
@@ -327,6 +364,7 @@ func Test_Supergood(t *testing.T) {
 		require.NoError(t, sg.Close())
 
 		require.Len(t, events, 1)
+		require.NotNil(t, events[0].Response)
 		require.Equal(t, 200, events[0].Response.Status)
 	})
 
@@ -368,14 +406,15 @@ func Test_Supergood(t *testing.T) {
 	})
 
 	t.Run("error handling on close", func(t *testing.T) {
+		reset()
 		broken = true
 		defer func() { broken = false }()
 		echo(t, &Options{})
-		require.Len(t, errors, 1)
-		require.Equal(t, "supergood: got HTTP 500 Internal Server Error posting to /events", errors[0].Message)
-		require.Equal(t, "supergood-go", errors[0].Payload.Name)
+		require.Len(t, errorReports, 1)
+		require.Equal(t, "supergood: got HTTP 500 Internal Server Error posting to /events", errorReports[0].Message)
+		require.Equal(t, "supergood-go", errorReports[0].Payload.Name)
 		// cannot be read in tests
-		require.Equal(t, "unknown", errors[0].Payload.Version)
+		require.Equal(t, "unknown", errorReports[0].Payload.Version)
 	})
 
 	t.Run("handling a broken error handler", func(t *testing.T) {
@@ -394,30 +433,18 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("handling invalid client id", func(t *testing.T) {
 		var logErr error
-		sg, err := New(&Options{OnError: func(e error) { logErr = e }, ClientID: "oops"})
-		require.NoError(t, err)
-		sg.DefaultClient.Get(host + "/echo")
-		err = sg.Close()
+		_, err := New(&Options{OnError: func(e error) { logErr = e }, ClientID: "oops"})
 		require.Error(t, err, "invalid ClientID")
 		require.NoError(t, logErr)
 	})
 
 	t.Run("handling broken base url", func(t *testing.T) {
-		var logErrs []error
 
-		sg, err := New(&Options{
-			OnError:       func(e error) { logErrs = append(logErrs, e) },
+		_, err := New(&Options{
 			BaseURL:       "https://localhost:1",
 			FlushInterval: 1 * time.Millisecond,
 		})
-		require.NoError(t, err)
-		sg.DefaultClient.Get(host + "/echo")
-		time.Sleep(50 * time.Millisecond)
-
-		require.Len(t, logErrs, 2)
-		require.Error(t, logErrs[0], "/post/events")
-		require.Error(t, logErrs[1], "/post/errors")
-		sg.Close()
+		require.Error(t, err, "connection refused")
 	})
 
 	t.Run("tesing http clients passed as options", func(t *testing.T) {
@@ -434,9 +461,11 @@ func Test_Supergood(t *testing.T) {
 			<-mockServerChannel
 			count++
 		}
-		// Two calls get tracked by the base client. One for the initial mock request
+		// Three calls get tracked by the base client.
+		// First to fetch the remote config
+		// One for the initial mock request
 		// and another tracking the call to the supergood backend
-		require.Equal(t, count, 2)
+		require.Equal(t, count, 3)
 		close(mockServerChannel)
 
 		require.Len(t, events, 1)
