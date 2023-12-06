@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/supergoodsystems/supergood-go/domainutils"
@@ -50,9 +50,10 @@ type sensitiveKeys struct {
 }
 
 type endpointCacheVal struct {
-	Regex    *regexp.Regexp
-	Location string
-	Action   string
+	Regex         *regexp.Regexp
+	Location      string
+	Action        string
+	SensitiveKeys []sensitiveKeys
 }
 
 func (sg *Service) initRemoteConfig() error {
@@ -123,11 +124,14 @@ func (sg *Service) shouldIgnoreRequestRemoteConfig(req *http.Request) bool {
 	}
 
 	endpoints := sg.remoteConfigCache[domain]
-	if endpoints == nil {
+	if len(endpoints) == 0 {
 		return false
 	}
 	for _, endpoint := range endpoints {
-		testVal, err := marshalEndpointLocationValue(req, endpoint.Location)
+		if endpoint.Action != "Ignore" {
+			continue
+		}
+		testVal, err := marshalEndpointLocation(req, endpoint.Location)
 		if err != nil {
 			sg.options.OnError(err)
 			continue
@@ -161,9 +165,10 @@ func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string][]end
 				return nil, err
 			}
 			endpointCacheVal := endpointCacheVal{
-				Regex:    regex,
-				Location: endpoint.MatchingRegex.Location,
-				Action:   endpoint.EndpointConfiguration.Action,
+				Regex:         regex,
+				Location:      endpoint.MatchingRegex.Location,
+				Action:        endpoint.EndpointConfiguration.Action,
+				SensitiveKeys: endpoint.EndpointConfiguration.SensitiveKeys,
 			}
 			cacheVal = append(cacheVal, endpointCacheVal)
 		}
@@ -172,28 +177,71 @@ func createRemoteConfigCache(remoteConfigArray []remoteConfig) (map[string][]end
 	return remoteConfigMap, nil
 }
 
-// mashalEndpointLocation value takes an endpoint location, which is used to uniquely classify
+// mashalEndpointLocation takes an endpoint location, which is used to uniquely classify
 // a request and stringifies the request object at that location
-func marshalEndpointLocationValue(req *http.Request, location string) (string, error) {
-	switch location {
-	case "subdomain":
-		return req.URL.Host, nil
-	case "url":
+func marshalEndpointLocation(req *http.Request, location string) (string, error) {
+	if location == "url" {
 		return req.URL.String(), nil
-	case "path":
-		return req.URL.Path, nil
-	case "domain":
-		return req.URL.Host, nil
-	case "request_body":
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			return "", err
-		}
-		req.Body = io.NopCloser(bytes.NewBuffer(body))
-		return string(body), nil
-	case "request_headers":
-		return fmt.Sprint(req.Header), nil
-	default:
-		return "", errors.New("invalid location parameter for RegExp matching")
 	}
+	if location == "domain" {
+		return domainutils.Domain(req.URL.String()), nil
+	}
+	if location == "subdomain" {
+		return domainutils.Subdomain(req.URL.String()), nil
+	}
+	if location == "path" {
+		return req.URL.Path, nil
+	}
+	if strings.Contains(location, "request_headers") {
+		return getHeaderValueAtLocation(req.Header, location)
+	}
+	if strings.Contains(location, "request_body") {
+		return getRequestBodyValueAtLocation(req, location)
+	}
+
+	return "", fmt.Errorf("unexpected location parameter for RegExp matching: %s", location)
+}
+
+func getHeaderValueAtLocation(headers http.Header, location string) (string, error) {
+	path := strings.Split(location, ".")
+	if len(path) != 2 {
+		return "", fmt.Errorf("invalid header parameter for RegExp matching: %s", location)
+	}
+	return headers.Get(path[1]), nil
+
+}
+
+// getRequestBodyValueAtLocation retrieves the nested field value of a struct based on the given location string.
+func getRequestBodyValueAtLocation(req *http.Request, location string) (string, error) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return "", err
+	}
+	req.Body = io.NopCloser(bytes.NewBuffer(body))
+
+	if !json.Valid(body) {
+		return string(body), nil
+	}
+
+	var nestedBody map[string]interface{}
+	err = json.Unmarshal(body, &nestedBody)
+	if err != nil {
+		return "", err
+	}
+
+	path := strings.Split(location, ".")
+	for _, key := range path {
+		value, ok := nestedBody[key]
+		if !ok {
+			return "", fmt.Errorf("field not found: %s", location)
+		}
+
+		if nested, ok := value.(map[string]interface{}); ok {
+			nestedBody = nested
+		} else {
+			// If not a map, this is the final value
+			return fmt.Sprintf("%v", value), nil
+		}
+	}
+	return "", fmt.Errorf("field not found: %s", location)
 }
