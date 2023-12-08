@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	uuid "github.com/satori/go.uuid"
+	"github.com/supergoodsystems/supergood-go/internal/event"
 )
 
 type roundTripper struct {
@@ -12,13 +13,13 @@ type roundTripper struct {
 }
 
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if !rt.sg.options.SelectRequests(req) || rt.sg.shouldIgnoreRequestRemoteConfig(req) {
+	if !rt.sg.options.SelectRequests(req) || rt.sg.remoteConfig.ShouldIgnoreRequest(req) {
 		return rt.next.RoundTrip(req)
 	}
 
 	id := uuid.NewV4().String()
-	rt.sg.logRequest(id, newRequest(id, req, rt.sg.options))
+	rt.sg.logRequest(id, event.NewRequest(id, req))
 	resp, err := rt.next.RoundTrip(req)
-	rt.sg.logResponse(id, newResponse(resp, err, rt.sg.options))
+	rt.sg.logResponse(id, event.NewResponse(resp, err))
 	return resp, err
 }

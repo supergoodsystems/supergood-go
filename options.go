@@ -22,32 +22,20 @@ type Options struct {
 	// or "https://api.supergood.ai" if not set)
 	BaseURL string
 
-	// RecordRequestBody additionally sends the body of requests to supergood for debugging.
-	// Defaults to false, if set true all values will be redacted and hashed unless specified
-	RecordRequestBody bool
+	// RedactRequestBodyKeys is a map of top level domains to a list of keys within
+	// the request body representing object paths to be redacted.
+	// map[string][]string {"plaid.com": []string{"path.to.redacted.[].field"}}
+	RedactRequestBodyKeys map[string][]string
 
-	// IncludeRequestBodyKeys is a list of keys who's value which to NOT redact in the request body
-	// if RecordRequestBody is true
-	// (defaults to an empty map)
-	IncludeSpecifiedRequestBodyKeys map[string]bool
+	// RedactResponseBodyKeys is a map of top level domains to a list of keys within
+	// the response body representing object paths to be redacted.
+	// map[string][]string {"plaid.com": []string{"path.to.redacted.[].field"}}
+	RedactResponseBodyKeys map[string][]string
 
-	// SkipRedaction allows content from an event payload to be passed to the supergood system for
-	// finer grain anomoly detection
-	SkipRedaction bool
-
-	// RecordResponseBody additionally sends the body of responses to supergood for debugging.
-	// Defaults to false, if set true all values will be redacted and hashed unless specified
-	RecordResponseBody bool
-
-	// IncludeResponseBodyKeys is a list of keys who's value which to NOT redact in the response body
-	// if RecordResponseBody is true
-	// (defaults to an empty map)
-	IncludeSpecifiedResponseBodyKeys map[string]bool
-
-	// Supergood replaces sensitive headers by the sha1 of their contents, by default.
-	// IncludeSpecifiedRequestHeadersKeys will override this behavior and include the specified value
-	// Matching is case insensitive.
-	IncludeSpecifiedRequestHeaderKeys map[string]bool
+	// RedactRequestHeaderKeys is a map of top level domains to a list of keys within
+	// the request headers representing keys to be redacted.
+	// map[string][string] {"plaid.com": []string{"client-id", "client-secret"}}
+	RedactRequestHeaderKeys map[string][]string
 
 	// List of strings to match against the host of the request URL in order to determine
 	// whether or not to log the request to supergood, based on the domain. Case sensitive.
@@ -130,20 +118,28 @@ func (o *Options) parse() (*Options, error) {
 		}
 	}
 
-	if o.IncludeSpecifiedRequestHeaderKeys == nil {
-		o.IncludeSpecifiedRequestHeaderKeys = map[string]bool{}
+	if o.RedactRequestHeaderKeys == nil {
+		o.RedactRequestHeaderKeys = map[string][]string{}
 	} else {
-		for k, v := range o.IncludeSpecifiedRequestHeaderKeys {
-			o.IncludeSpecifiedRequestHeaderKeys[strings.ToLower(k)] = v
+		for k, v := range o.RedactRequestHeaderKeys {
+			o.RedactRequestHeaderKeys[strings.ToLower(k)] = v
 		}
 	}
 
-	if o.IncludeSpecifiedRequestBodyKeys == nil {
-		o.IncludeSpecifiedRequestBodyKeys = map[string]bool{}
+	if o.RedactRequestBodyKeys == nil {
+		o.RedactRequestBodyKeys = map[string][]string{}
+	} else {
+		for k, v := range o.RedactRequestBodyKeys {
+			o.RedactRequestBodyKeys[strings.ToLower(k)] = v
+		}
 	}
 
-	if o.IncludeSpecifiedResponseBodyKeys == nil {
-		o.IncludeSpecifiedResponseBodyKeys = map[string]bool{}
+	if o.RedactResponseBodyKeys == nil {
+		o.RedactResponseBodyKeys = map[string][]string{}
+	} else {
+		for k, v := range o.RedactResponseBodyKeys {
+			o.RedactResponseBodyKeys[strings.ToLower(k)] = v
+		}
 	}
 
 	if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {

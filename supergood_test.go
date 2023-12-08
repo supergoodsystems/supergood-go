@@ -199,7 +199,7 @@ func Test_Supergood(t *testing.T) {
 	}
 
 	t.Run("default", func(t *testing.T) {
-		echo(t, &Options{RecordResponseBody: false})
+		echo(t, &Options{RedactResponseBody: false})
 		require.Len(t, events, 1)
 		require.Nil(t, events[0].Response.Body)
 		require.Nil(t, events[0].Request.Body)
@@ -213,13 +213,13 @@ func Test_Supergood(t *testing.T) {
 		require.Equal(t, events[0].Response.StatusText, "200 OK")
 	})
 
-	t.Run("RecordResponseBody=true", func(t *testing.T) {
-		echo(t, &Options{RecordResponseBody: true})
+	t.Run("RedactResponseBody=true", func(t *testing.T) {
+		echo(t, &Options{RedactResponseBody: true})
 		require.Len(t, events, 1)
 		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
 	})
-	t.Run("RecordRequestBody=true", func(t *testing.T) {
-		echo(t, &Options{RecordRequestBody: true})
+	t.Run("RedactRequestBody=true", func(t *testing.T) {
+		echo(t, &Options{RedactRequestBody: true})
 		require.Len(t, events, 1)
 		require.Equal(t, "aaaa*aaaa", events[0].Request.Body)
 	})
@@ -248,61 +248,61 @@ func Test_Supergood(t *testing.T) {
 	})
 
 	t.Run("redacting nested string values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": "aaaaa"}, "other": "aaaaa"}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested integer values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":999},"other":999}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":999},"other":999}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": float64(111)}, "other": float64(111)}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested float values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":999.99},"other":999.99}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":999.99},"other":999.99}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": 111.111111}, "other": 111.111111}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested array values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":[{"key":"value"}],"other":["value"]}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":[{"key":"value"}],"other":["value"]}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": []any{map[string]any{"key": "aaaaa"}}, "other": []any{"aaaaa"}}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested boolean values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":true},"other":true}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":true},"other":true}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": false}, "other": false}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nested non-ASCII values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key":"สวัสดี"},"other":"ลาก่อน"}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":"สวัสดี"},"other":"ลาก่อน"}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": "******"}, "other": "******"}, events[0].Request.Body)
 	})
 
 	t.Run("redacting nil values", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"nested":{"key": null},"other": null}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key": null},"other": null}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": nil}, "other": nil}, events[0].Request.Body)
 	})
 
 	t.Run("ignoring redaction for nested request keys", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true, IncludeSpecifiedRequestBodyKeys: map[string]bool{"key": true}}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
+		echoBody(t, &Options{RedactRequestBody: true, IncludeSpecifiedRequestBodyKeys: map[string]bool{"key": true}}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"nested": map[string]any{"key": "value"}, "other": "aaaaa"}, events[0].Request.Body)
 	})
 
 	t.Run("valid JSON body", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte(`{"ok":200}`))
+		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"ok":200}`))
 		require.Len(t, events, 1)
 		require.Equal(t, map[string]any{"ok": float64(111)}, events[0].Request.Body)
 	})
 
 	t.Run("binary body", func(t *testing.T) {
-		echoBody(t, &Options{RecordRequestBody: true}, []byte{0xff, 0x00, 0xff, 0x00})
+		echoBody(t, &Options{RedactRequestBody: true}, []byte{0xff, 0x00, 0xff, 0x00})
 		require.Len(t, events, 1)
 		// String = "/wD/AA=="
 		require.Equal(t, "binary", events[0].Request.Body)
@@ -370,7 +370,7 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("error handling on response body parsing", func(t *testing.T) {
 		reset()
-		sg, err := New(&Options{RecordResponseBody: true})
+		sg, err := New(&Options{RedactResponseBody: true})
 		require.NoError(t, err)
 		defer sg.Close()
 
@@ -452,7 +452,7 @@ func Test_Supergood(t *testing.T) {
 		mockServerChannel := make(chan int, 2)
 		options := &Options{
 			HTTPClient:         mockWrapClient(mockBaseClient, mockServerChannel),
-			RecordResponseBody: true,
+			RedactResponseBody: true,
 		}
 		echo(t, options)
 
@@ -473,7 +473,7 @@ func Test_Supergood(t *testing.T) {
 	})
 
 	t.Run("SkipRedaction=true", func(t *testing.T) {
-		echo(t, &Options{RecordResponseBody: true, RecordRequestBody: true, SkipRedaction: true})
+		echo(t, &Options{RedactResponseBody: true, RedactRequestBody: true, SkipRedaction: true})
 		require.Len(t, events, 1)
 		require.Equal(t, "test-body", events[0].Request.Body)
 		require.Equal(t, "test-body", events[0].Response.Body)

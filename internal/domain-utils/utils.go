@@ -6,6 +6,16 @@ import (
 	"golang.org/x/net/idna"
 )
 
+// GetDomainFromHost returns the domain given a hostname and falls back to subdomain
+// if domain fails to return a valid entry
+func GetDomainFromHost(hostname string) string {
+	domain := Domain(hostname)
+	if domain == "" {
+		domain = Subdomain(hostname)
+	}
+	return domain
+}
+
 // HasSubdomain reports whether domain contains any subdomain.
 func HasSubdomain(domain string) bool {
 	domain, top := stripURLParts(domain), Domain(domain)
