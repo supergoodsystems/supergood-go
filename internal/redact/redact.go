@@ -1,12 +1,8 @@
 package redact
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"reflect"
-	"strconv"
-	"strings"
 	"sync"
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
@@ -15,6 +11,7 @@ import (
 )
 
 // Redact removes the sensitive keys provided in remote config cache
+// NOTE: Redact modifies events and appends redacted info to the event object
 func Redact(events []*event.Event, mutex *sync.RWMutex, cache map[string][]remoteconfig.EndpointCacheVal, handleError func(error)) error {
 	mutex.RLock()
 	defer mutex.RUnlock()
@@ -45,63 +42,38 @@ func Redact(events []*event.Event, mutex *sync.RWMutex, cache map[string][]remot
 				if err != nil {
 					handleError(err)
 				}
-				redact(formattedParts, e)
-
+				meta, err := redactEvent(formattedParts, e)
 				if err != nil {
 					handleError(err)
 				}
+				e.MetaData.SensitiveKeys = append(e.MetaData.SensitiveKeys, meta...)
 			}
 		}
 	}
 	return nil
 }
 
-// sensitive keys are of the form requestHeaders, responseBody etc. These values must
-// be mapped to fields in the parsed supergood event
-func formatSensitiveKey(keyPath string) ([]string, error) {
-	parts := strings.Split(keyPath, ".")
-	remainingParts := []string{}
-
-	switch parts[0] {
-	case remoteconfig.RequestHeadersStr:
-		remainingParts = append(remainingParts, "Request", "Headers")
-	case remoteconfig.RequestBodyStr:
-		remainingParts = append(remainingParts, "Request", "Body")
-	case remoteconfig.ResponseHeadersStr:
-		remainingParts = append(remainingParts, "Response", "Headers")
-	case remoteconfig.ResponseBodyStr:
-		remainingParts = append(remainingParts, "Response", "Headers")
-	default:
-		return []string{}, fmt.Errorf("invalid sensitive key value provided: %s", keyPath)
-	}
-	if len(parts) > 1 {
-		remainingParts = append(remainingParts, parts[1:]...)
-	}
-
-	return remainingParts, nil
+func redactEvent(path []string, v interface{}) ([]event.RedactedKeyMeta, error) {
+	return redactEventHelper(path, reflect.ValueOf(v).Elem())
 }
 
-func redact(path []string, v interface{}) ([]RedactedMeta, error) {
-	return redacthelper(path, reflect.ValueOf(v).Elem())
-}
-
-func redacthelper(path []string, v reflect.Value) ([]RedactedMeta, error) {
+func redactEventHelper(path []string, v reflect.Value) ([]event.RedactedKeyMeta, error) {
 	if len(path) == 0 {
 		size := getSize(v)
 		v.Set(reflect.Zero(v.Type()))
-		return []RedactedMeta{
+		return []event.RedactedKeyMeta{
 			{
-				Size: size,
-				Type: v.Type().Kind().String(),
+				Length: size,
+				Type:   v.Type().Kind().String(),
 			},
 		}, nil
 	} else {
 		switch v.Type().Kind() {
 		case reflect.Ptr:
-			return redact(path, v.Elem())
+			return redactEventHelper(path, v.Elem())
 
 		case reflect.Struct:
-			return redact(path[1:], v.FieldByName(path[0]))
+			return redactEventHelper(path[1:], v.FieldByName(path[0]))
 
 		case reflect.Map:
 			// You can't mutate elements of a map, but as a special case if we just
@@ -113,24 +85,24 @@ func redacthelper(path []string, v reflect.Value) ([]RedactedMeta, error) {
 				idx := reflect.ValueOf(path[0])
 				size := getSize(mapVal)
 				v.SetMapIndex(idx, reflect.Zero(v.Type().Elem()))
-				return []RedactedMeta{
+				return []event.RedactedKeyMeta{
 					{
-						Size: size,
-						Type: v.Type().Kind().String(),
+						Length: size,
+						Type:   v.Type().Kind().String(),
 					},
 				}, nil
 			} else {
-				return redact(path[1:], mapVal)
+				return redactEventHelper(path[1:], mapVal)
 			}
 
 		case reflect.Array, reflect.Slice:
 			idx := parseArrayIndex(path[0])
 			if idx > -1 {
-				return redact(path, v.Index(idx))
+				return redactEventHelper(path, v.Index(idx))
 			} else if idx == -1 {
-				results := []RedactedMeta{}
+				results := []event.RedactedKeyMeta{}
 				for i := 0; i < v.Len(); i++ {
-					result, err := redact(path, v.Index(i))
+					result, err := redactEventHelper(path, v.Index(i))
 					if err != nil {
 						return results, err
 					}
@@ -145,28 +117,4 @@ func redacthelper(path []string, v reflect.Value) ([]RedactedMeta, error) {
 			return nil, fmt.Errorf("redact.Redact: unsupported type %v", v.Type().String())
 		}
 	}
-}
-
-func parseArrayIndex(subpath string) int {
-	// -2 return type here will be used to represent all indecies
-	if subpath == "[]" {
-		return -2
-	}
-	// -1 will represent an error
-	i, err := strconv.Atoi(subpath)
-	if err != nil {
-		return -1
-	}
-	return i
-}
-
-func getSize(obj any) int {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(obj)
-	if err != nil {
-		return -1
-	}
-	return buf.Len()
-
 }

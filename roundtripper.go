@@ -5,6 +5,7 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/supergoodsystems/supergood-go/internal/event"
+	"github.com/supergoodsystems/supergood-go/internal/ignore"
 )
 
 type roundTripper struct {
@@ -13,7 +14,8 @@ type roundTripper struct {
 }
 
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if !rt.sg.options.SelectRequests(req) || rt.sg.remoteConfig.ShouldIgnoreRequest(req) {
+	if !rt.sg.options.SelectRequests(req) ||
+		ignore.ShouldIgnoreRequest(req, &rt.sg.remoteConfig.Mutex, rt.sg.remoteConfig.Cache, rt.sg.options.OnError) {
 		return rt.next.RoundTrip(req)
 	}
 
