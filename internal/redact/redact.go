@@ -1,4 +1,4 @@
-package remoteconfig
+package redact
 
 import (
 	"bytes"
@@ -7,24 +7,21 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
 	"github.com/supergoodsystems/supergood-go/internal/event"
+	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
 )
 
-func (rc *RemoteConfig) RedactSensitiveKeys(events []*event.Event) error {
-	// if options.RedactRequestBody {
-	// 	body, r.Body = duplicateBody(r.Body)
-	// 	body = redactValues(body, options.IncludeSpecifiedRequestBodyKeys)
-
-	// }
-
-	rc.Mutex.RLock()
-	defer rc.Mutex.RUnlock()
+// Redact removes the sensitive keys provided in remote config cache
+func Redact(events []*event.Event, mutex *sync.RWMutex, cache map[string][]remoteconfig.EndpointCacheVal, handleError func(error)) error {
+	mutex.RLock()
+	defer mutex.RUnlock()
 
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
-		endpoints := rc.Cache[domain]
+		endpoints := cache[domain]
 		if len(endpoints) == 0 {
 			continue
 		}
@@ -34,7 +31,7 @@ func (rc *RemoteConfig) RedactSensitiveKeys(events []*event.Event) error {
 			}
 			testVal, err := event.StringifyAtLocation(e, endpoint.Location)
 			if err != nil {
-				rc.HandleError(err)
+				handleError(err)
 				continue
 			}
 			testByteArray := []byte(fmt.Sprintf("%v", testVal))
@@ -46,12 +43,12 @@ func (rc *RemoteConfig) RedactSensitiveKeys(events []*event.Event) error {
 			for _, sensitiveKey := range endpoint.SensitiveKeys {
 				formattedParts, err := formatSensitiveKey(sensitiveKey.KeyPath)
 				if err != nil {
-					rc.HandleError(err)
+					handleError(err)
 				}
 				redact(formattedParts, e)
 
 				if err != nil {
-					rc.HandleError(err)
+					handleError(err)
 				}
 			}
 		}
@@ -66,13 +63,13 @@ func formatSensitiveKey(keyPath string) ([]string, error) {
 	remainingParts := []string{}
 
 	switch parts[0] {
-	case RequestHeadersStr:
+	case remoteconfig.RequestHeadersStr:
 		remainingParts = append(remainingParts, "Request", "Headers")
-	case RequestBodyStr:
+	case remoteconfig.RequestBodyStr:
 		remainingParts = append(remainingParts, "Request", "Body")
-	case ResponseHeadersStr:
+	case remoteconfig.ResponseHeadersStr:
 		remainingParts = append(remainingParts, "Response", "Headers")
-	case ResponseBodyStr:
+	case remoteconfig.ResponseBodyStr:
 		remainingParts = append(remainingParts, "Response", "Headers")
 	default:
 		return []string{}, fmt.Errorf("invalid sensitive key value provided: %s", keyPath)

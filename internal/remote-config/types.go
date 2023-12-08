@@ -63,12 +63,6 @@ type EndpointCacheVal struct {
 	SensitiveKeys []SensitiveKeys
 }
 
-type RedactedMeta struct {
-	Location string
-	Size     int
-	Type     string
-}
-
 const (
 	RequestHeadersStr  = "requestHeaders"
 	RequestBodyStr     = "requestBody"

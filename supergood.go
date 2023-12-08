@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/supergoodsystems/supergood-go/internal/event"
+	"github.com/supergoodsystems/supergood-go/internal/redact"
 	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
 )
 
@@ -40,10 +41,6 @@ type Service struct {
 	queue        map[string]*event.Event
 	close        chan chan error
 	remoteConfig remoteconfig.RemoteConfig
-
-	// remoteConfigClose chan struct{}
-	// remoteConfigCacheMutex sync.RWMutex
-	// remoteConfigCache      map[string][]shared.EndpointCacheVal
 }
 
 // New creates a new supergood service.
@@ -165,7 +162,7 @@ func (sg *Service) flush(force bool) error {
 		}
 		delete(sg.queue, key)
 		toSend = append(toSend, entry)
-		sg.remoteConfig.RedactSensitiveKeys(toSend)
+		redact.Redact(toSend, &sg.remoteConfig.Mutex, sg.remoteConfig.Cache, sg.handleError)
 	}
 
 	if len(toSend) == 0 {
