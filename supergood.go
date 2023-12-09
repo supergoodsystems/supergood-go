@@ -36,10 +36,10 @@ type Service struct {
 
 	DefaultClient *http.Client
 
-	options      *Options
-	mutex        sync.Mutex
-	queue        map[string]*event.Event
 	close        chan chan error
+	mutex        sync.Mutex
+	options      *Options
+	queue        map[string]*event.Event
 	remoteConfig remoteconfig.RemoteConfig
 }
 
