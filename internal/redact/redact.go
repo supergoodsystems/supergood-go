@@ -41,10 +41,12 @@ func Redact(events []*event.Event, mutex *sync.RWMutex, cache map[string][]remot
 				formattedParts, err := formatSensitiveKey(sensitiveKey.KeyPath)
 				if err != nil {
 					handleError(err)
+					continue
 				}
-				meta, err := redactEvent(formattedParts, e)
+				meta, err := redactEvent(sensitiveKey.KeyPath, formattedParts, e)
 				if err != nil {
 					handleError(err)
+					continue
 				}
 				e.MetaData.SensitiveKeys = append(e.MetaData.SensitiveKeys, meta...)
 			}
@@ -53,27 +55,34 @@ func Redact(events []*event.Event, mutex *sync.RWMutex, cache map[string][]remot
 	return nil
 }
 
-func redactEvent(path []string, v interface{}) ([]event.RedactedKeyMeta, error) {
-	return redactEventHelper(path, reflect.ValueOf(v).Elem())
+func redactEvent(fullpath string, path []string, v any) ([]event.RedactedKeyMeta, error) {
+	x := reflect.ValueOf(v)
+	y := x.Elem()
+	fmt.Println(y)
+	return redactEventHelper(fullpath, path, reflect.ValueOf(v).Elem())
 }
 
-func redactEventHelper(path []string, v reflect.Value) ([]event.RedactedKeyMeta, error) {
+func redactEventHelper(fullpath string, path []string, v reflect.Value) ([]event.RedactedKeyMeta, error) {
 	if len(path) == 0 {
 		size := getSize(v)
 		v.Set(reflect.Zero(v.Type()))
 		return []event.RedactedKeyMeta{
 			{
-				Length: size,
-				Type:   v.Type().Kind().String(),
+				KeyPath: fullpath,
+				Length:  size,
+				Type:    v.Type().Kind().String(),
 			},
 		}, nil
 	} else {
 		switch v.Type().Kind() {
 		case reflect.Ptr:
-			return redactEventHelper(path, v.Elem())
+			return redactEventHelper(fullpath, path, v.Elem())
+
+		case reflect.Interface:
+			return redactEventHelper(fullpath, path, v.Elem())
 
 		case reflect.Struct:
-			return redactEventHelper(path[1:], v.FieldByName(path[0]))
+			return redactEventHelper(fullpath, path[1:], v.FieldByName(path[0]))
 
 		case reflect.Map:
 			// You can't mutate elements of a map, but as a special case if we just
@@ -82,27 +91,27 @@ func redactEventHelper(path []string, v reflect.Value) ([]event.RedactedKeyMeta,
 			idx := reflect.ValueOf(path[0])
 			mapVal := v.MapIndex(idx)
 			if len(path) == 1 {
-				idx := reflect.ValueOf(path[0])
 				size := getSize(mapVal)
 				v.SetMapIndex(idx, reflect.Zero(v.Type().Elem()))
 				return []event.RedactedKeyMeta{
 					{
-						Length: size,
-						Type:   v.Type().Kind().String(),
+						KeyPath: fullpath,
+						Length:  size,
+						Type:    v.Type().Kind().String(),
 					},
 				}, nil
 			} else {
-				return redactEventHelper(path[1:], mapVal)
+				return redactEventHelper(fullpath, path[1:], mapVal)
 			}
 
 		case reflect.Array, reflect.Slice:
 			idx := parseArrayIndex(path[0])
 			if idx > -1 {
-				return redactEventHelper(path, v.Index(idx))
+				return redactEventHelper(fullpath, path, v.Index(idx))
 			} else if idx == -1 {
 				results := []event.RedactedKeyMeta{}
 				for i := 0; i < v.Len(); i++ {
-					result, err := redactEventHelper(path, v.Index(i))
+					result, err := redactEventHelper(fullpath, path, v.Index(i))
 					if err != nil {
 						return results, err
 					}

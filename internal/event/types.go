@@ -5,7 +5,7 @@ import "time"
 type Event struct {
 	Request  *Request  `json:"request"`
 	Response *Response `json:"response,omitempty"`
-	MetaData *MetaData `json:"metadata"`
+	MetaData MetaData  `json:"metadata"`
 }
 
 type Request struct {
