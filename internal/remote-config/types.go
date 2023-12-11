@@ -7,19 +7,35 @@ import (
 	"time"
 )
 
-type RemoteConfig struct {
+type RemoteConfigOpts struct {
 	BaseURL                 string
 	Cache                   map[string][]EndpointCacheVal
 	ClientID                string
 	ClientSecret            string
 	Client                  *http.Client
-	Close                   chan struct{}
 	FetchInterval           time.Duration
 	HandleError             func(error)
 	RedactRequestBodyKeys   map[string][]string
 	RedactResponseBodyKeys  map[string][]string
 	RedactRequestHeaderKeys map[string][]string
+}
+
+// RemoteConfig is the struct that holds to config cache. Note: most of these fields should be private,
+// but because we want to retain supergood.Options and prevent a circular dependency, these are public
+// optionally, we could expose a New() func that takes these in as args to prevent exposing them
+type RemoteConfig struct {
+	baseURL                 string
+	cache                   map[string][]EndpointCacheVal
+	clientID                string
+	clientSecret            string
+	client                  *http.Client
+	close                   chan struct{}
+	fetchInterval           time.Duration
+	handleError             func(error)
 	mutex                   sync.RWMutex
+	redactRequestBodyKeys   map[string][]string
+	redactResponseBodyKeys  map[string][]string
+	redactRequestHeaderKeys map[string][]string
 }
 
 type RemoteConfigResponse struct {

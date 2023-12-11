@@ -23,7 +23,7 @@ func formatSensitiveKey(keyPath string) ([]string, error) {
 	case remoteconfig.ResponseHeadersStr:
 		remainingParts = append(remainingParts, "Response", "Headers")
 	case remoteconfig.ResponseBodyStr:
-		remainingParts = append(remainingParts, "Response", "Headers")
+		remainingParts = append(remainingParts, "Response", "Body")
 	default:
 		return []string{}, fmt.Errorf("invalid sensitive key value provided: %s", keyPath)
 	}
@@ -49,24 +49,22 @@ func parseArrayIndex(subpath string) int {
 
 func getSize(v reflect.Value) int {
 	size := int(reflect.TypeOf(v).Size())
-	switch kind := v.Kind(); {
-	case kind == reflect.Interface || kind == reflect.Pointer:
+	switch v.Kind() {
+	case reflect.Interface, reflect.Pointer:
 		size += getSize(v.Elem())
-	case kind == reflect.Array || kind == reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		s := reflect.ValueOf(v)
 		for i := 0; i < s.Len(); i++ {
 			size += getSize(s.Index(i))
 		}
-	case kind == reflect.Map:
+	case reflect.Map:
 		keys := v.MapKeys()
 		for i := range keys {
 			size += getSize(keys[i]) + getSize(v.MapIndex(keys[i]))
 		}
-	case kind == reflect.String:
+	case reflect.String:
 		size += v.Len()
-	case kind == reflect.Struct:
-		y := v.NumField()
-		fmt.Println(y)
+	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
 			size += getSize(v.Field(i))
 		}

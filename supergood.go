@@ -67,23 +67,22 @@ func New(o *Options) (*Service, error) {
 	// which causes a circular dependency. I'd like to avoid moving supergood.Options to a separate package
 	// since it's nicer for end users to initialize the supergood client with a single supergood import
 	// e.g. supergood.New(&supergood.Options{}) instead of supergood.New(&supergoodOptions.Options{})
-	sg.rc = remoteconfig.RemoteConfig{
+	sg.rc = remoteconfig.New(remoteconfig.RemoteConfigOpts{
 		BaseURL:                 sg.options.BaseURL,
 		ClientID:                sg.options.ClientID,
 		ClientSecret:            sg.options.ClientSecret,
 		Client:                  sg.options.HTTPClient,
-		Close:                   make(chan struct{}),
 		FetchInterval:           sg.options.RemoteConfigFetchInterval,
 		HandleError:             sg.options.OnError,
 		RedactRequestBodyKeys:   sg.options.RedactRequestBodyKeys,
 		RedactResponseBodyKeys:  sg.options.RedactResponseBodyKeys,
 		RedactRequestHeaderKeys: sg.options.RedactRequestHeaderKeys,
-	}
+	})
 
 	sg.reset()
 
 	// TODO: dont error on remote config initalization
-	// Do not send events unless we've successfully fetched remote confi
+	// Do not send events unless we've successfully fetched remote config
 	err = sg.rc.Init()
 	if err != nil {
 		return nil, err
@@ -114,9 +113,8 @@ func (sg *Service) Wrap(client *http.Client) *http.Client {
 func (sg *Service) Close() error {
 	ch := make(chan error)
 	sg.close <- ch
-	sg.rc.Close <- struct{}{}
 	close(sg.close)
-	close(sg.rc.Close)
+	sg.rc.Close()
 	return <-ch
 }
 
@@ -181,7 +179,6 @@ func (sg *Service) reset() map[string]*event.Event {
 
 	entries := sg.queue
 	sg.queue = map[string]*event.Event{}
-	sg.rc.Cache = map[string][]remoteconfig.EndpointCacheVal{}
 	return entries
 }
 

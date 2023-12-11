@@ -11,7 +11,7 @@ import (
 
 // fetch calls the supergood /config endpoint and returns a marshalled config object
 func (rc *RemoteConfig) fetch() ([]RemoteConfigResponse, error) {
-	url, err := url.JoinPath(rc.BaseURL, "/config")
+	url, err := url.JoinPath(rc.baseURL, "/config")
 	if err != nil {
 		return nil, err
 	}
@@ -20,9 +20,9 @@ func (rc *RemoteConfig) fetch() ([]RemoteConfigResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(rc.ClientID+":"+rc.ClientSecret)))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(rc.clientID+":"+rc.clientSecret)))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := rc.Client.Do(req)
+	resp, err := rc.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -12,15 +12,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/supergoodsystems/supergood-go/internal/event"
+	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
 )
 
-var events []*event
+var events []*event.Event
 var errorReports []*errorReport
 var broken bool
 var twiceBroken bool
 
 func reset() {
-	events = []*event{}
+	events = []*event.Event{}
 	errorReports = []*errorReport{}
 }
 
@@ -101,7 +103,7 @@ func mockApiServer(t *testing.T) string {
 		}
 
 		if r.URL.Path == "/events" && r.Method == "POST" {
-			newEvents := []*event{}
+			newEvents := []*event.Event{}
 			err := json.NewDecoder(r.Body).Decode(&newEvents)
 			require.NoError(t, err)
 			events = append(events, newEvents...)
@@ -111,20 +113,20 @@ func mockApiServer(t *testing.T) string {
 		}
 
 		if r.URL.Path == "/config" && r.Method == "GET" {
-			remoteConfig := []remoteConfig{
+			remoteConfig := []remoteconfig.RemoteConfigResponse{
 				{
 					Id:     "test-id",
 					Domain: "ignored-domain.com",
 					Name:   "Ignore me domain",
-					Endpoints: []endpoint{
+					Endpoints: []remoteconfig.Endpoint{
 						{
 							Id:   "test-endpoint-id",
 							Name: "ignore me endpoint",
-							MatchingRegex: matchingRegex{
+							MatchingRegex: remoteconfig.MatchingRegex{
 								Location: "path",
 								Regex:    "/ignore-me",
 							},
-							EndpointConfiguration: endpointConfiguration{
+							EndpointConfiguration: remoteconfig.EndpointConfiguration{
 								Action: "Ignore",
 							},
 						},
@@ -158,8 +160,8 @@ func testServer(t *testing.T) string {
 		}
 
 		if string(body) == "set-clock" {
-			now := clock()
-			clock = func() time.Time { return now.Add(2 * time.Second) }
+			now := event.Clock()
+			event.Clock = func() time.Time { return now.Add(2 * time.Second) }
 		}
 
 		rw.Write(body)
@@ -195,14 +197,17 @@ func Test_Supergood(t *testing.T) {
 		}
 	}
 	echo := func(t *testing.T, o *Options) {
-		echoBody(t, o, []byte("test-body"))
+		body := map[string]string{
+			"key": "body",
+		}
+		bytes, _ := json.Marshal(body)
+		echoBody(t, o, bytes)
 	}
 
 	t.Run("default", func(t *testing.T) {
-		echo(t, &Options{RedactResponseBody: false})
+		echo(t, &Options{})
 		require.Len(t, events, 1)
-		require.Nil(t, events[0].Response.Body)
-		require.Nil(t, events[0].Request.Body)
+		require.Empty(t, events[0].Response.Body)
 		require.Equal(t, "/echo", events[0].Request.Path)
 		require.Equal(t, "param=1", events[0].Request.Search)
 		require.Equal(t, host+"/echo?param=1", events[0].Request.URL)
@@ -211,17 +216,6 @@ func Test_Supergood(t *testing.T) {
 		require.Equal(t, events[0].Response.Headers["Auth-Was"], "test-auth")
 		require.Equal(t, events[0].Response.Status, 200)
 		require.Equal(t, events[0].Response.StatusText, "200 OK")
-	})
-
-	t.Run("RedactResponseBody=true", func(t *testing.T) {
-		echo(t, &Options{RedactResponseBody: true})
-		require.Len(t, events, 1)
-		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
-	})
-	t.Run("RedactRequestBody=true", func(t *testing.T) {
-		echo(t, &Options{RedactRequestBody: true})
-		require.Len(t, events, 1)
-		require.Equal(t, "aaaa*aaaa", events[0].Request.Body)
 	})
 
 	t.Run("AllowedDomains=[\"herokuapp.com\"]", func(t *testing.T) {
@@ -247,75 +241,6 @@ func Test_Supergood(t *testing.T) {
 		require.Len(t, events, 0)
 	})
 
-	t.Run("redacting nested string values", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": map[string]any{"key": "aaaaa"}, "other": "aaaaa"}, events[0].Request.Body)
-	})
-
-	t.Run("redacting nested integer values", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":999},"other":999}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": map[string]any{"key": float64(111)}, "other": float64(111)}, events[0].Request.Body)
-	})
-
-	t.Run("redacting nested float values", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":999.99},"other":999.99}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": map[string]any{"key": 111.111111}, "other": 111.111111}, events[0].Request.Body)
-	})
-
-	t.Run("redacting nested array values", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":[{"key":"value"}],"other":["value"]}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": []any{map[string]any{"key": "aaaaa"}}, "other": []any{"aaaaa"}}, events[0].Request.Body)
-	})
-
-	t.Run("redacting nested boolean values", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":true},"other":true}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": map[string]any{"key": false}, "other": false}, events[0].Request.Body)
-	})
-
-	t.Run("redacting nested non-ASCII values", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key":"สวัสดี"},"other":"ลาก่อน"}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": map[string]any{"key": "******"}, "other": "******"}, events[0].Request.Body)
-	})
-
-	t.Run("redacting nil values", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"nested":{"key": null},"other": null}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": map[string]any{"key": nil}, "other": nil}, events[0].Request.Body)
-	})
-
-	t.Run("ignoring redaction for nested request keys", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true, IncludeSpecifiedRequestBodyKeys: map[string]bool{"key": true}}, []byte(`{"nested":{"key":"value"},"other":"value"}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"nested": map[string]any{"key": "value"}, "other": "aaaaa"}, events[0].Request.Body)
-	})
-
-	t.Run("valid JSON body", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte(`{"ok":200}`))
-		require.Len(t, events, 1)
-		require.Equal(t, map[string]any{"ok": float64(111)}, events[0].Request.Body)
-	})
-
-	t.Run("binary body", func(t *testing.T) {
-		echoBody(t, &Options{RedactRequestBody: true}, []byte{0xff, 0x00, 0xff, 0x00})
-		require.Len(t, events, 1)
-		// String = "/wD/AA=="
-		require.Equal(t, "binary", events[0].Request.Body)
-	})
-
-	t.Run("RedactHeaders", func(t *testing.T) {
-		echo(t, &Options{IncludeSpecifiedRequestHeaderKeys: map[string]bool{"AUTH-WAS": true}})
-		require.Len(t, events, 1)
-		require.NotNil(t, events[0].Request)
-		require.Equal(t, events[0].Request.Headers["Authorization"], "redacted:dba430468af6b5fc3c22facf6dc871ce6e3801b9")
-		require.Equal(t, events[0].Response.Headers["Auth-Was"], "test-auth")
-	})
-
 	t.Run("SelectRequests", func(t *testing.T) {
 		echo(t, &Options{
 			SelectRequests: func(r *http.Request) bool {
@@ -329,8 +254,8 @@ func Test_Supergood(t *testing.T) {
 	})
 
 	t.Run("test timing", func(t *testing.T) {
-		clock = func() time.Time { return time.Date(2023, 01, 01, 01, 01, 01, 0, time.UTC) }
-		defer func() { clock = time.Now }()
+		event.Clock = func() time.Time { return time.Date(2023, 01, 01, 01, 01, 01, 0, time.UTC) }
+		defer func() { event.Clock = time.Now }()
 		echoBody(t, &Options{}, []byte("set-clock"))
 
 		require.Len(t, events, 1)
@@ -370,7 +295,7 @@ func Test_Supergood(t *testing.T) {
 
 	t.Run("error handling on response body parsing", func(t *testing.T) {
 		reset()
-		sg, err := New(&Options{RedactResponseBody: true})
+		sg, err := New(nil)
 		require.NoError(t, err)
 		defer sg.Close()
 
@@ -451,8 +376,7 @@ func Test_Supergood(t *testing.T) {
 		mockBaseClient := &http.Client{}
 		mockServerChannel := make(chan int, 2)
 		options := &Options{
-			HTTPClient:         mockWrapClient(mockBaseClient, mockServerChannel),
-			RedactResponseBody: true,
+			HTTPClient: mockWrapClient(mockBaseClient, mockServerChannel),
 		}
 		echo(t, options)
 
@@ -469,13 +393,5 @@ func Test_Supergood(t *testing.T) {
 		close(mockServerChannel)
 
 		require.Len(t, events, 1)
-		require.Equal(t, "aaaa*aaaa", events[0].Response.Body)
-	})
-
-	t.Run("SkipRedaction=true", func(t *testing.T) {
-		echo(t, &Options{RedactResponseBody: true, RedactRequestBody: true, SkipRedaction: true})
-		require.Len(t, events, 1)
-		require.Equal(t, "test-body", events[0].Request.Body)
-		require.Equal(t, "test-body", events[0].Response.Body)
 	})
 }

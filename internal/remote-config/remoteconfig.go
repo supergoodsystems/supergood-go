@@ -4,6 +4,23 @@ import (
 	"time"
 )
 
+// New creates a new RemoteConfig struct
+func New(opts RemoteConfigOpts) RemoteConfig {
+	return RemoteConfig{
+		baseURL:                 opts.BaseURL,
+		cache:                   map[string][]EndpointCacheVal{},
+		clientID:                opts.ClientID,
+		clientSecret:            opts.ClientSecret,
+		client:                  opts.Client,
+		close:                   make(chan struct{}),
+		fetchInterval:           opts.FetchInterval,
+		handleError:             opts.HandleError,
+		redactRequestBodyKeys:   opts.RedactRequestBodyKeys,
+		redactResponseBodyKeys:  opts.RedactResponseBodyKeys,
+		redactRequestHeaderKeys: opts.RedactRequestHeaderKeys,
+	}
+}
+
 // Init initializes the remote config cache
 func (rc *RemoteConfig) Init() error {
 	return rc.fetchAndSetConfig()
@@ -14,11 +31,11 @@ func (rc *RemoteConfig) Init() error {
 func (rc *RemoteConfig) Refresh() {
 	for {
 		select {
-		case <-rc.Close:
+		case <-rc.close:
 			return
-		case <-time.After(rc.FetchInterval):
+		case <-time.After(rc.fetchInterval):
 			if err := rc.fetchAndSetConfig(); err != nil {
-				rc.HandleError(err)
+				rc.handleError(err)
 			}
 		}
 	}

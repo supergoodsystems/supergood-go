@@ -1,61 +1,104 @@
 package redact
 
-// import (
-// 	"bytes"
-// 	"encoding/json"
-// 	"io"
-// 	"net/http"
-// 	"regexp"
-// 	"sync"
-// 	"testing"
+import (
+	"regexp"
+	"testing"
 
-// 	"github.com/stretchr/testify/require"
-// 	"github.com/supergoodsystems/supergood-go/internal/event"
-// 	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
-// )
+	"github.com/stretchr/testify/require"
+	"github.com/supergoodsystems/supergood-go/internal/event"
+	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
+)
 
-// func Test_Redact(t *testing.T) {
+func Test_Redact(t *testing.T) {
 
-// 	t.Run("redact sensitive keys from cache", func(t *testing.T) {
-// 		events := createEvents()
-// 		mutex := sync.RWMutex{}
-// 		cache := createRemoteConfigCache()
-// 		handleError := func(error) {}
-// 		Redact(events, &mutex, cache, handleError)
-// 	})
+	t.Run("Redact sensitive key from request body", func(t *testing.T) {
+		events := createEvents()
+		config := createRemoteConfig()
+		regex, _ := regexp.Compile("test-endpoint")
+		cacheVal := []remoteconfig.EndpointCacheVal{
+			{
+				Regex:    *regex,
+				Location: "path",
+				Action:   "Accept",
+				SensitiveKeys: []remoteconfig.SensitiveKeys{
+					{KeyPath: "requestBody.key"},
+					{KeyPath: "requestBody.nested.key"},
+				},
+			},
+		}
+		config.Set("test.com", cacheVal)
+		Redact(events, config, func(error) {})
 
-// }
+		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["key"])
+		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["nested"].(map[string]any)["key"])
+	})
 
-// func createRemoteConfigCache() map[string][]remoteconfig.EndpointCacheVal {
-// 	regex, _ := regexp.Compile("test-endpoint")
-// 	cache := map[string][]remoteconfig.EndpointCacheVal{
-// 		"test.com": []remoteconfig.EndpointCacheVal{
-// 			remoteconfig.EndpointCacheVal{
-// 				Regex:         *regex,
-// 				Location:      "path",
-// 				Action:        "Accept",
-// 				SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestBody.key"}},
-// 			},
-// 		},
-// 	}
-// 	return cache
-// }
+	t.Run("Redact sensitive key from response body", func(t *testing.T) {
+		events := createEvents()
+		config := createRemoteConfig()
+		regex, _ := regexp.Compile("test-endpoint")
+		cacheVal := []remoteconfig.EndpointCacheVal{
+			{
+				Regex:         *regex,
+				Location:      "path",
+				Action:        "Accept",
+				SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "responseBody.key"}},
+			},
+		}
+		config.Set("test.com", cacheVal)
+		Redact(events, config, func(error) {})
+		require.Equal(t, "", events[0].Response.Body.(map[string]string)["key"])
+	})
+	t.Run("Redact sensitive key from request headers", func(t *testing.T) {
+		events := createEvents()
+		config := createRemoteConfig()
+		regex, _ := regexp.Compile("test-endpoint")
+		cacheVal := []remoteconfig.EndpointCacheVal{
+			{
+				Regex:         *regex,
+				Location:      "path",
+				Action:        "Accept",
+				SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestHeaders.key"}},
+			},
+		}
+		config.Set("test.com", cacheVal)
+		Redact(events, config, func(error) {})
+		require.Equal(t, "", events[0].Request.Headers["key"])
+	})
+}
 
-// func createEvents() []*event.Event {
-// 	events := []*event.Event{}
-// 	event := &event.Event{
-// 		Request: &event.Request{
-// 			Body: map[string]string{
-// 				"key": "value",
-// 			},
-// 			Headers: map[string]string{
-// 				"key": "value",
-// 			},
-// 		},
-// 	}
-// 	events = append(events, event)
-// 	return events
-// }
+func createRemoteConfig() *remoteconfig.RemoteConfig {
+	config := remoteconfig.New(remoteconfig.RemoteConfigOpts{
+		HandleError: func(error) {},
+	})
+	return &config
+}
+
+func createEvents() []*event.Event {
+	events := []*event.Event{}
+	event := &event.Event{
+		Request: &event.Request{
+			URL:  "test.com/test-endpoint",
+			Path: "/test-endpoint",
+			Body: map[string]any{
+				"key": "value",
+				"nested": map[string]any{
+					"key": "value",
+				},
+			},
+			Headers: map[string]string{
+				"key": "value",
+			},
+		},
+		Response: &event.Response{
+			Body: map[string]string{
+				"key": "value",
+			},
+		},
+	}
+	events = append(events, event)
+	return events
+}
 
 // func Test_Supergood(t *testing.T) {
 // 	baseURL := mockApiServer(t)

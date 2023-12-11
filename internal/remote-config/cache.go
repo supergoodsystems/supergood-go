@@ -9,7 +9,7 @@ import (
 func (rc *RemoteConfig) Get(domain string) ([]EndpointCacheVal, error) {
 	rc.mutex.RLock()
 	defer rc.mutex.RUnlock()
-	val, ok := rc.Cache[domain]
+	val, ok := rc.cache[domain]
 	if !ok {
 		return nil, fmt.Errorf("failed to find %s domain in cache", domain)
 	}
@@ -18,12 +18,12 @@ func (rc *RemoteConfig) Get(domain string) ([]EndpointCacheVal, error) {
 
 // Set sets an endpoint cache val into the remote config cache
 func (rc *RemoteConfig) Set(domain string, val []EndpointCacheVal) error {
-	if rc.Cache == nil {
+	if rc.cache == nil {
 		return fmt.Errorf("failed to set cache val in remote config cache. remote config cachee not initialized")
 	}
 	rc.mutex.Lock()
 	defer rc.mutex.Unlock()
-	rc.Cache[domain] = val
+	rc.cache[domain] = val
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 				Regex:         *regex,
 				Location:      endpoint.MatchingRegex.Location,
 				Action:        endpoint.EndpointConfiguration.Action,
-				SensitiveKeys: rc.mergeSensitiveKeysWithOptions(config.Domain, endpoint.EndpointConfiguration.SensitiveKeys),
+				SensitiveKeys: rc.mergeSensitiveKeysOptions(config.Domain, endpoint.EndpointConfiguration.SensitiveKeys),
 			}
 			cacheVal = append(cacheVal, endpointCacheVal)
 		}
@@ -56,23 +56,28 @@ func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 	return nil
 }
 
-func (rc *RemoteConfig) mergeSensitiveKeysWithOptions(domain string, sensitiveKeys []SensitiveKeys) []SensitiveKeys {
+func (rc *RemoteConfig) Close() {
+	rc.close <- struct{}{}
+	close(rc.close)
+}
+
+func (rc *RemoteConfig) mergeSensitiveKeysOptions(domain string, sensitiveKeys []SensitiveKeys) []SensitiveKeys {
 	mergedKeys := sensitiveKeys
-	for _, keyStr := range rc.RedactRequestHeaderKeys[domain] {
+	for _, keyStr := range rc.redactRequestHeaderKeys[domain] {
 		key := SensitiveKeys{
 			KeyPath: RequestHeadersStr + "." + keyStr,
 		}
 		mergedKeys = append(mergedKeys, key)
 	}
 
-	for _, keyStr := range rc.RedactRequestBodyKeys[domain] {
+	for _, keyStr := range rc.redactRequestBodyKeys[domain] {
 		key := SensitiveKeys{
 			KeyPath: RequestBodyStr + "." + keyStr,
 		}
 		mergedKeys = append(mergedKeys, key)
 	}
 
-	for _, keyStr := range rc.RedactResponseBodyKeys[domain] {
+	for _, keyStr := range rc.redactResponseBodyKeys[domain] {
 		key := SensitiveKeys{
 			KeyPath: ResponseBodyStr + "." + keyStr,
 		}
