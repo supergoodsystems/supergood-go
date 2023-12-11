@@ -20,12 +20,7 @@ func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig, handl
 		return false
 	}
 
-	endpoints, err := rc.Get(domain)
-	if err != nil {
-		handleError(err)
-		return false
-	}
-
+	endpoints := rc.Get(domain)
 	if len(endpoints) == 0 {
 		return false
 	}

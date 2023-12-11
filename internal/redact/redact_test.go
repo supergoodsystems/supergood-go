@@ -39,15 +39,19 @@ func Test_Redact(t *testing.T) {
 		regex, _ := regexp.Compile("test-endpoint")
 		cacheVal := []remoteconfig.EndpointCacheVal{
 			{
-				Regex:         *regex,
-				Location:      "path",
-				Action:        "Accept",
-				SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "responseBody.key"}},
+				Regex:    *regex,
+				Location: "path",
+				Action:   "Accept",
+				SensitiveKeys: []remoteconfig.SensitiveKeys{
+					{KeyPath: "responseBody.key"},
+					{KeyPath: "responseBody.nested.key"},
+				},
 			},
 		}
 		config.Set("test.com", cacheVal)
 		Redact(events, config, func(error) {})
-		require.Equal(t, "", events[0].Response.Body.(map[string]string)["key"])
+		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["key"])
+		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["nested"].(map[string]any)["key"])
 	})
 	t.Run("Redact sensitive key from request headers", func(t *testing.T) {
 		events := createEvents()
@@ -91,8 +95,11 @@ func createEvents() []*event.Event {
 			},
 		},
 		Response: &event.Response{
-			Body: map[string]string{
+			Body: map[string]any{
 				"key": "value",
+				"nested": map[string]any{
+					"key": "value",
+				},
 			},
 		},
 	}

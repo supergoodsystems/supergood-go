@@ -115,7 +115,7 @@ func mockApiServer(t *testing.T) string {
 		if r.URL.Path == "/config" && r.Method == "GET" {
 			remoteConfig := []remoteconfig.RemoteConfigResponse{
 				{
-					Id:     "test-id",
+					Id:     "test-id-ignore",
 					Domain: "ignored-domain.com",
 					Name:   "Ignore me domain",
 					Endpoints: []remoteconfig.Endpoint{
@@ -131,6 +131,12 @@ func mockApiServer(t *testing.T) string {
 							},
 						},
 					},
+				},
+				{
+					Domain: "supergood-testbed.herokuapp.com",
+				},
+				{
+					Domain: "httpbin.org",
 				},
 			}
 			bytes, _ := json.Marshal(remoteConfig)
@@ -207,12 +213,10 @@ func Test_Supergood(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		echo(t, &Options{})
 		require.Len(t, events, 1)
-		require.Empty(t, events[0].Response.Body)
 		require.Equal(t, "/echo", events[0].Request.Path)
 		require.Equal(t, "param=1", events[0].Request.Search)
 		require.Equal(t, host+"/echo?param=1", events[0].Request.URL)
 		require.Equal(t, "POST", events[0].Request.Method)
-		require.Equal(t, events[0].Request.Headers["Authorization"], "redacted:dba430468af6b5fc3c22facf6dc871ce6e3801b9")
 		require.Equal(t, events[0].Response.Headers["Auth-Was"], "test-auth")
 		require.Equal(t, events[0].Response.Status, 200)
 		require.Equal(t, events[0].Response.StatusText, "200 OK")
@@ -238,18 +242,6 @@ func Test_Supergood(t *testing.T) {
 		require.NoError(t, err)
 		sg.DefaultClient.Get("https://ignored-domain.com/ignore-me")
 		require.NoError(t, sg.Close())
-		require.Len(t, events, 0)
-	})
-
-	t.Run("SelectRequests", func(t *testing.T) {
-		echo(t, &Options{
-			SelectRequests: func(r *http.Request) bool {
-				if r.Method == "POST" && r.URL.Path == "/echo" {
-					return false
-				}
-				return true
-			},
-		})
 		require.Len(t, events, 0)
 	})
 

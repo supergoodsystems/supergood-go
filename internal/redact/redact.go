@@ -15,11 +15,7 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError fu
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
 
-		endpoints, err := rc.Get(domain)
-		if err != nil {
-			handleError(err)
-			continue
-		}
+		endpoints := rc.Get(domain)
 		if len(endpoints) == 0 {
 			continue
 		}

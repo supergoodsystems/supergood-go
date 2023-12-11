@@ -6,14 +6,11 @@ import (
 )
 
 // Get retrieves an object from the remote config cache
-func (rc *RemoteConfig) Get(domain string) ([]EndpointCacheVal, error) {
+func (rc *RemoteConfig) Get(domain string) []EndpointCacheVal {
 	rc.mutex.RLock()
 	defer rc.mutex.RUnlock()
-	val, ok := rc.cache[domain]
-	if !ok {
-		return nil, fmt.Errorf("failed to find %s domain in cache", domain)
-	}
-	return val, nil
+	val := rc.cache[domain]
+	return val
 }
 
 // Set sets an endpoint cache val into the remote config cache

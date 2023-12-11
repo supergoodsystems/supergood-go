@@ -54,7 +54,7 @@ func TestOptions_overrides(t *testing.T) {
 	require.Equal(t, "test_client_secret2", o.ClientSecret)
 	require.Equal(t, "https://api.superbad.ai", o.BaseURL)
 	require.Empty(t, o.RedactRequestHeaderKeys["notconfigured.com"])
-	require.Equal(t, "header-key", o.RedactRequestHeaderKeys["example.com"])
+	require.Equal(t, "header-key", o.RedactRequestHeaderKeys["example.com"][0])
 	require.Equal(t, "requestbody.path.to.key", o.RedactRequestBodyKeys["example.com"][0])
 	require.Equal(t, "responsebody.path.to.key", o.RedactResponseBodyKeys["example.com"][0])
 	require.Equal(t, []string{"example.com"}, o.AllowedDomains)
