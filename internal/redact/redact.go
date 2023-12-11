@@ -11,7 +11,7 @@ import (
 
 // Redact removes the sensitive keys provided in remote config cache
 // NOTE: Redact modifies events and appends redacted info to the event object
-func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError func(error)) error {
+func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError func(error)) {
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
 
@@ -49,7 +49,6 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError fu
 			}
 		}
 	}
-	return nil
 }
 
 func redactEvent(fullpath string, path []string, v any) ([]event.RedactedKeyMeta, error) {

@@ -47,7 +47,10 @@ func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 			}
 			cacheVal = append(cacheVal, endpointCacheVal)
 		}
-		rc.Set(config.Domain, cacheVal)
+		err := rc.Set(config.Domain, cacheVal)
+		if err != nil {
+			return err
+		}
 		remoteConfigMap[config.Domain] = cacheVal
 	}
 	return nil
