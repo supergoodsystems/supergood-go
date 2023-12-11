@@ -6,7 +6,7 @@ import (
 )
 
 // overridden in tests
-var clock = time.Now
+var Clock = time.Now
 
 func NewRequest(id string, r *http.Request) *Request {
 	var body any
@@ -20,14 +20,14 @@ func NewRequest(id string, r *http.Request) *Request {
 		Path:        r.URL.Path,
 		Search:      r.URL.RawQuery,
 		Body:        body,
-		RequestedAt: clock(),
+		RequestedAt: Clock(),
 	}
 
 	return req
 }
 
 func NewResponse(res *http.Response, err error) *Response {
-	now := clock()
+	now := Clock()
 	if err != nil {
 		return &Response{
 			Status:      0,

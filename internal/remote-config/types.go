@@ -16,10 +16,10 @@ type RemoteConfig struct {
 	Close                   chan struct{}
 	FetchInterval           time.Duration
 	HandleError             func(error)
-	Mutex                   sync.RWMutex
 	RedactRequestBodyKeys   map[string][]string
 	RedactResponseBodyKeys  map[string][]string
 	RedactRequestHeaderKeys map[string][]string
+	mutex                   sync.RWMutex
 }
 
 type RemoteConfigResponse struct {

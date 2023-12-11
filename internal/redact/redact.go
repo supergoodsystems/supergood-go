@@ -3,7 +3,6 @@ package redact
 import (
 	"fmt"
 	"reflect"
-	"sync"
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
 	"github.com/supergoodsystems/supergood-go/internal/event"
@@ -12,13 +11,15 @@ import (
 
 // Redact removes the sensitive keys provided in remote config cache
 // NOTE: Redact modifies events and appends redacted info to the event object
-func Redact(events []*event.Event, mutex *sync.RWMutex, cache map[string][]remoteconfig.EndpointCacheVal, handleError func(error)) error {
-	mutex.RLock()
-	defer mutex.RUnlock()
-
+func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError func(error)) error {
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
-		endpoints := cache[domain]
+
+		endpoints, err := rc.Get(domain)
+		if err != nil {
+			handleError(err)
+			continue
+		}
 		if len(endpoints) == 0 {
 			continue
 		}
@@ -56,9 +57,6 @@ func Redact(events []*event.Event, mutex *sync.RWMutex, cache map[string][]remot
 }
 
 func redactEvent(fullpath string, path []string, v any) ([]event.RedactedKeyMeta, error) {
-	x := reflect.ValueOf(v)
-	y := x.Elem()
-	fmt.Println(y)
 	return redactEventHelper(fullpath, path, reflect.ValueOf(v).Elem())
 }
 
@@ -75,10 +73,7 @@ func redactEventHelper(fullpath string, path []string, v reflect.Value) ([]event
 		}, nil
 	} else {
 		switch v.Type().Kind() {
-		case reflect.Ptr:
-			return redactEventHelper(fullpath, path, v.Elem())
-
-		case reflect.Interface:
+		case reflect.Ptr, reflect.Interface:
 			return redactEventHelper(fullpath, path, v.Elem())
 
 		case reflect.Struct:

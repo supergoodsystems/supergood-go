@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
 	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
@@ -15,16 +14,18 @@ import (
 
 // ShouldIgnoreRequest evaluates based off the remote config cache whether an intercepted
 // request should be forwarded to supergood
-func ShouldIgnoreRequest(req *http.Request, mutex *sync.RWMutex, cache map[string][]remoteconfig.EndpointCacheVal, handleError func(error)) bool {
+func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig, handleError func(error)) bool {
 	domain := domainutils.GetDomainFromHost(req.Host)
 	if domain == "" {
 		return false
 	}
 
-	mutex.RLock()
-	defer mutex.RUnlock()
+	endpoints, err := rc.Get(domain)
+	if err != nil {
+		handleError(err)
+		return false
+	}
 
-	endpoints := cache[domain]
 	if len(endpoints) == 0 {
 		return false
 	}

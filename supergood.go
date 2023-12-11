@@ -36,11 +36,11 @@ type Service struct {
 
 	DefaultClient *http.Client
 
-	close        chan chan error
-	mutex        sync.Mutex
-	options      *Options
-	queue        map[string]*event.Event
-	remoteConfig remoteconfig.RemoteConfig
+	close   chan chan error
+	mutex   sync.Mutex
+	options *Options
+	queue   map[string]*event.Event
+	rc      remoteconfig.RemoteConfig
 }
 
 // New creates a new supergood service.
@@ -60,10 +60,14 @@ func New(o *Options) (*Service, error) {
 	if sg.options.HTTPClient != nil {
 		client = sg.options.HTTPClient
 	}
-
 	sg.DefaultClient = sg.Wrap(client)
 
-	sg.remoteConfig = remoteconfig.RemoteConfig{
+	// Comment: I'd like to have passed sg.options to a New() func
+	// however that requires that the remote config package have a dependency on supergood.Options
+	// which causes a circular dependency. I'd like to avoid moving supergood.Options to a separate package
+	// since it's nicer for end users to initialize the supergood client with a single supergood import
+	// e.g. supergood.New(&supergood.Options{}) instead of supergood.New(&supergoodOptions.Options{})
+	sg.rc = remoteconfig.RemoteConfig{
 		BaseURL:                 sg.options.BaseURL,
 		ClientID:                sg.options.ClientID,
 		ClientSecret:            sg.options.ClientSecret,
@@ -80,13 +84,13 @@ func New(o *Options) (*Service, error) {
 
 	// TODO: dont error on remote config initalization
 	// Do not send events unless we've successfully fetched remote confi
-	err = sg.remoteConfig.Init()
+	err = sg.rc.Init()
 	if err != nil {
 		return nil, err
 	}
 
 	go sg.loop()
-	go sg.remoteConfig.RefreshRemoteConfig()
+	go sg.rc.Refresh()
 	return sg, nil
 }
 
@@ -110,9 +114,9 @@ func (sg *Service) Wrap(client *http.Client) *http.Client {
 func (sg *Service) Close() error {
 	ch := make(chan error)
 	sg.close <- ch
-	sg.remoteConfig.Close <- struct{}{}
+	sg.rc.Close <- struct{}{}
 	close(sg.close)
-	close(sg.remoteConfig.Close)
+	close(sg.rc.Close)
 	return <-ch
 }
 
@@ -162,7 +166,7 @@ func (sg *Service) flush(force bool) error {
 		}
 		delete(sg.queue, key)
 		toSend = append(toSend, entry)
-		redact.Redact(toSend, &sg.remoteConfig.Mutex, sg.remoteConfig.Cache, sg.handleError)
+		redact.Redact(toSend, &sg.rc, sg.handleError)
 	}
 
 	if len(toSend) == 0 {
@@ -177,7 +181,7 @@ func (sg *Service) reset() map[string]*event.Event {
 
 	entries := sg.queue
 	sg.queue = map[string]*event.Event{}
-	sg.remoteConfig.Cache = map[string][]remoteconfig.EndpointCacheVal{}
+	sg.rc.Cache = map[string][]remoteconfig.EndpointCacheVal{}
 	return entries
 }
 

@@ -11,7 +11,7 @@ func (rc *RemoteConfig) Init() error {
 
 // RefreshRemoteConfig refreshes the remote config on an interval
 // and receives a close channel to gracefully return on application exit
-func (rc *RemoteConfig) RefreshRemoteConfig() {
+func (rc *RemoteConfig) Refresh() {
 	for {
 		select {
 		case <-rc.Close:
@@ -32,13 +32,5 @@ func (rc *RemoteConfig) fetchAndSetConfig() error {
 		return err
 	}
 
-	cache, err := rc.createCache(resp)
-	if err != nil {
-		return err
-	}
-
-	rc.Mutex.Lock()
-	defer rc.Mutex.Unlock()
-	rc.Cache = cache
-	return nil
+	return rc.Create(resp)
 }

@@ -15,7 +15,7 @@ type roundTripper struct {
 
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if !rt.sg.options.SelectRequests(req) ||
-		ignore.ShouldIgnoreRequest(req, &rt.sg.remoteConfig.Mutex, rt.sg.remoteConfig.Cache, rt.sg.options.OnError) {
+		ignore.ShouldIgnoreRequest(req, &rt.sg.rc, rt.sg.options.OnError) {
 		return rt.next.RoundTrip(req)
 	}
 

@@ -1,9 +1,8 @@
 package redact
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -48,12 +47,29 @@ func parseArrayIndex(subpath string) int {
 	return i
 }
 
-func getSize(obj any) int {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(obj)
-	if err != nil {
-		return -1
+func getSize(v reflect.Value) int {
+	size := int(reflect.TypeOf(v).Size())
+	switch kind := v.Kind(); {
+	case kind == reflect.Interface || kind == reflect.Pointer:
+		size += getSize(v.Elem())
+	case kind == reflect.Array || kind == reflect.Slice:
+		s := reflect.ValueOf(v)
+		for i := 0; i < s.Len(); i++ {
+			size += getSize(s.Index(i))
+		}
+	case kind == reflect.Map:
+		keys := v.MapKeys()
+		for i := range keys {
+			size += getSize(keys[i]) + getSize(v.MapIndex(keys[i]))
+		}
+	case kind == reflect.String:
+		size += v.Len()
+	case kind == reflect.Struct:
+		y := v.NumField()
+		fmt.Println(y)
+		for i := 0; i < v.NumField(); i++ {
+			size += getSize(v.Field(i))
+		}
 	}
-	return buf.Len()
+	return size
 }
