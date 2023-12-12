@@ -47,6 +47,7 @@ func parseArrayIndex(subpath string) int {
 	return i
 }
 
+// Note: this is a naive way of generating the size of a reflected object
 func getSize(v reflect.Value) int {
 	size := int(reflect.TypeOf(v).Size())
 	switch v.Kind() {

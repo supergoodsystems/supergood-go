@@ -14,15 +14,16 @@ import (
 
 // ShouldIgnoreRequest evaluates based off the remote config cache whether an intercepted
 // request should be forwarded to supergood
-func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig, handleError func(error)) bool {
+func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig) (bool, []error) {
+	var errs []error
 	domain := domainutils.GetDomainFromHost(req.Host)
 	if domain == "" {
-		return false
+		return false, errs
 	}
 
 	endpoints := rc.Get(domain)
 	if len(endpoints) == 0 {
-		return false
+		return false, errs
 	}
 	for _, endpoint := range endpoints {
 		if endpoint.Action != "Ignore" {
@@ -30,16 +31,16 @@ func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig, handl
 		}
 		testVal, err := stringifyRequestAtLocation(req, endpoint.Location)
 		if err != nil {
-			handleError(err)
+			errs = append(errs, err)
 			continue
 		}
 		testByteArray := []byte(fmt.Sprintf("%v", testVal))
 		match := endpoint.Regex.Match(testByteArray)
 		if match {
-			return true
+			return true, errs
 		}
 	}
-	return false
+	return false, errs
 }
 
 // stringifyRequestAtLocation takes an endpoint location, which is used to uniquely classify

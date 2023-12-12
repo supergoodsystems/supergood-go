@@ -14,8 +14,11 @@ type roundTripper struct {
 }
 
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if !rt.sg.options.SelectRequests(req) ||
-		ignore.ShouldIgnoreRequest(req, &rt.sg.rc, rt.sg.options.OnError) {
+	shouldIgnore, errors := ignore.ShouldIgnoreRequest(req, &rt.sg.rc)
+	for _, err := range errors {
+		rt.sg.handleError(err)
+	}
+	if !rt.sg.options.SelectRequests(req) || shouldIgnore {
 		return rt.next.RoundTrip(req)
 	}
 

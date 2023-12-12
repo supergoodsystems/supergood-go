@@ -164,7 +164,10 @@ func (sg *Service) flush(force bool) error {
 		}
 		delete(sg.queue, key)
 		toSend = append(toSend, entry)
-		redact.Redact(toSend, &sg.rc, sg.handleError)
+		errs := redact.Redact(toSend, &sg.rc)
+		for _, err := range errs {
+			sg.handleError(err)
+		}
 	}
 
 	if len(toSend) == 0 {

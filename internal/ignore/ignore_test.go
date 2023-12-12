@@ -21,8 +21,9 @@ func Test_Ignore(t *testing.T) {
 			},
 		})
 		req, _ := http.NewRequest("GET", "https://test.com/ignore-endpoint", nil)
-		ignore := ShouldIgnoreRequest(req, config, func(error) {})
+		ignore, errors := ShouldIgnoreRequest(req, config)
 		require.Equal(t, true, ignore)
+		require.Len(t, errors, 0)
 	})
 
 	t.Run("Successfully accepts request", func(t *testing.T) {
@@ -36,8 +37,9 @@ func Test_Ignore(t *testing.T) {
 			},
 		})
 		req, _ := http.NewRequest("GET", "https://test.com/ignore-endpoint", nil)
-		ignore := ShouldIgnoreRequest(req, config, func(error) {})
+		ignore, errors := ShouldIgnoreRequest(req, config)
 		require.Equal(t, false, ignore)
+		require.Len(t, errors, 0)
 	})
 }
 
@@ -47,15 +49,3 @@ func createRemoteConfig() *remoteconfig.RemoteConfig {
 	})
 	return &config
 }
-
-// t.Run("SelectRequests", func(t *testing.T) {
-// 	echo(t, &Options{
-// 		SelectRequests: func(r *http.Request) bool {
-// 			if r.Method == "POST" && r.URL.Path == "/echo" {
-// 				return false
-// 			}
-// 			return true
-// 		},
-// 	})
-// 	require.Len(t, events, 0)
-// })

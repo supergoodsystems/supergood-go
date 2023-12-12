@@ -11,7 +11,8 @@ import (
 
 // Redact removes the sensitive keys provided in remote config cache
 // NOTE: Redact modifies events and appends redacted info to the event object
-func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError func(error)) {
+func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
+	var errs []error
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
 
@@ -25,7 +26,7 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError fu
 			}
 			testVal, err := event.StringifyAtLocation(e, endpoint.Location)
 			if err != nil {
-				handleError(err)
+				errs = append(errs, err)
 				continue
 			}
 			testByteArray := []byte(fmt.Sprintf("%v", testVal))
@@ -37,18 +38,19 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig, handleError fu
 			for _, sensitiveKey := range endpoint.SensitiveKeys {
 				formattedParts, err := formatSensitiveKey(sensitiveKey.KeyPath)
 				if err != nil {
-					handleError(err)
+					errs = append(errs, err)
 					continue
 				}
 				meta, err := redactEvent(sensitiveKey.KeyPath, formattedParts, e)
 				if err != nil {
-					handleError(err)
+					errs = append(errs, err)
 					continue
 				}
 				e.MetaData.SensitiveKeys = append(e.MetaData.SensitiveKeys, meta...)
 			}
 		}
 	}
+	return errs
 }
 
 func redactEvent(fullpath string, path []string, v any) ([]event.RedactedKeyMeta, error) {
@@ -56,6 +58,9 @@ func redactEvent(fullpath string, path []string, v any) ([]event.RedactedKeyMeta
 }
 
 func redactEventHelper(fullpath string, path []string, v reflect.Value) ([]event.RedactedKeyMeta, error) {
+	if !v.IsValid() {
+		return nil, fmt.Errorf("unable to find key at sensitive key provided path: %s", fullpath)
+	}
 	if len(path) == 0 {
 		size := getSize(v)
 		v.Set(reflect.Zero(v.Type()))
@@ -80,14 +85,22 @@ func redactEventHelper(fullpath string, path []string, v reflect.Value) ([]event
 			// here.
 			idx := reflect.ValueOf(path[0])
 			mapVal := v.MapIndex(idx)
+			if !mapVal.IsValid() {
+				return nil, fmt.Errorf("unable to find key at sensitive key provided path: %s", fullpath)
+			}
 			if len(path) == 1 {
 				size := getSize(mapVal)
+				// Attempting to marshal into underlying type
+				objKind := mapVal.Type().Kind().String()
+				if mapVal.Kind() == reflect.Interface || mapVal.Kind() == reflect.Pointer {
+					objKind = mapVal.Elem().Type().Kind().String()
+				}
 				v.SetMapIndex(idx, reflect.Zero(v.Type().Elem()))
 				return []event.RedactedKeyMeta{
 					{
 						KeyPath: fullpath,
 						Length:  size,
-						Type:    v.Type().Kind().String(),
+						Type:    objKind,
 					},
 				}, nil
 			} else {
