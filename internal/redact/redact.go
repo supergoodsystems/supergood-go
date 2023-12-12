@@ -98,9 +98,6 @@ func redactEventHelper(fullpath string, path []string, v reflect.Value) ([]event
 				if mapVal.Kind() == reflect.Interface || mapVal.Kind() == reflect.Pointer {
 					objKind = mapVal.Elem().Type().Kind().String()
 				}
-				if !v.CanSet() {
-					return nil, fmt.Errorf("unable to redact at sensitive key provided path: %s", fullpath)
-				}
 				v.SetMapIndex(idx, reflect.Zero(v.Type().Elem()))
 				return []event.RedactedKeyMeta{
 					{
