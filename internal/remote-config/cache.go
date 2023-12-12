@@ -3,6 +3,8 @@ package remoteconfig
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/supergoodsystems/supergood-go/internal/shared"
 )
 
 // Get retrieves an object from the remote config cache
@@ -65,21 +67,21 @@ func (rc *RemoteConfig) mergeSensitiveKeysOptions(domain string, sensitiveKeys [
 	mergedKeys := sensitiveKeys
 	for _, keyStr := range rc.redactRequestHeaderKeys[domain] {
 		key := SensitiveKeys{
-			KeyPath: RequestHeadersStr + "." + keyStr,
+			KeyPath: shared.RequestHeadersStr + "." + keyStr,
 		}
 		mergedKeys = append(mergedKeys, key)
 	}
 
 	for _, keyStr := range rc.redactRequestBodyKeys[domain] {
 		key := SensitiveKeys{
-			KeyPath: RequestBodyStr + "." + keyStr,
+			KeyPath: shared.RequestBodyStr + "." + keyStr,
 		}
 		mergedKeys = append(mergedKeys, key)
 	}
 
 	for _, keyStr := range rc.redactResponseBodyKeys[domain] {
 		key := SensitiveKeys{
-			KeyPath: ResponseBodyStr + "." + keyStr,
+			KeyPath: shared.ResponseBodyStr + "." + keyStr,
 		}
 		mergedKeys = append(mergedKeys, key)
 	}

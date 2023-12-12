@@ -78,10 +78,3 @@ type EndpointCacheVal struct {
 	Action        string
 	SensitiveKeys []SensitiveKeys
 }
-
-const (
-	RequestHeadersStr  = "requestHeaders"
-	RequestBodyStr     = "requestBody"
-	ResponseHeadersStr = "responseHeaders"
-	ResponseBodyStr    = "responseBody"
-)

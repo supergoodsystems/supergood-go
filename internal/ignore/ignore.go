@@ -10,6 +10,7 @@ import (
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
 	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
+	"github.com/supergoodsystems/supergood-go/internal/shared"
 )
 
 // ShouldIgnoreRequest evaluates based off the remote config cache whether an intercepted
@@ -46,22 +47,22 @@ func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig) (bool
 // stringifyRequestAtLocation takes an endpoint location, which is used to uniquely classify
 // a request and stringifies the request object at that location
 func stringifyRequestAtLocation(req *http.Request, location string) (string, error) {
-	if location == "url" {
+	if location == shared.URLStr {
 		return req.URL.String(), nil
 	}
-	if location == "domain" {
+	if location == shared.DomainStr {
 		return domainutils.Domain(req.URL.String()), nil
 	}
-	if location == "subdomain" {
+	if location == shared.SubDomainStr {
 		return domainutils.Subdomain(req.URL.String()), nil
 	}
-	if location == "path" {
+	if location == shared.PathStr {
 		return req.URL.Path, nil
 	}
-	if strings.Contains(location, "request_headers") {
+	if strings.Contains(location, shared.RequestHeadersStr) {
 		return getHeaderValueAtLocation(req.Header, location)
 	}
-	if strings.Contains(location, "request_body") {
+	if strings.Contains(location, shared.RequestBodyStr) {
 		return getRequestBodyValueAtLocation(req, location)
 	}
 
@@ -110,7 +111,7 @@ func getRequestBodyValueAtLocation(req *http.Request, location string) (string, 
 // getHeaderValueAtLocation retrieves the header value string given a header key "location"
 func getHeaderValueAtLocation(headers http.Header, location string) (string, error) {
 	path := strings.Split(location, ".")
-	// location here is of form: request_header
+	// location here is of form: requestHeaders
 	if len(path) == 1 {
 		headerBytes, err := json.Marshal(headers)
 		if err != nil {
@@ -119,7 +120,7 @@ func getHeaderValueAtLocation(headers http.Header, location string) (string, err
 		return string(headerBytes), nil
 	}
 
-	// location here is of form: request_header.Client-Secret
+	// location here is of form: requestHeaders.Client-Secret
 	if len(path) != 2 {
 		return "", fmt.Errorf("invalid header parameter for RegExp matching: %s", location)
 	}

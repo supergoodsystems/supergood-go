@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
+	"github.com/supergoodsystems/supergood-go/internal/shared"
 )
 
 // sensitive keys are of the form requestHeaders, responseBody etc. These values must
@@ -16,13 +16,13 @@ func formatSensitiveKey(keyPath string) ([]string, error) {
 	remainingParts := []string{}
 
 	switch parts[0] {
-	case remoteconfig.RequestHeadersStr:
+	case shared.RequestHeadersStr:
 		remainingParts = append(remainingParts, "Request", "Headers")
-	case remoteconfig.RequestBodyStr:
+	case shared.RequestBodyStr:
 		remainingParts = append(remainingParts, "Request", "Body")
-	case remoteconfig.ResponseHeadersStr:
+	case shared.ResponseHeadersStr:
 		remainingParts = append(remainingParts, "Response", "Headers")
-	case remoteconfig.ResponseBodyStr:
+	case shared.ResponseBodyStr:
 		remainingParts = append(remainingParts, "Response", "Body")
 	default:
 		return []string{}, fmt.Errorf("invalid sensitive key value provided: %s", keyPath)

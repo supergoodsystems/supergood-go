@@ -10,26 +10,27 @@ import (
 	"unicode/utf8"
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
+	"github.com/supergoodsystems/supergood-go/internal/shared"
 )
 
 func StringifyAtLocation(event *Event, location string) (string, error) {
-	if location == "url" {
+	if location == shared.URLStr {
 		return event.Request.URL, nil
 	}
-	if location == "domain" {
+	if location == shared.DomainStr {
 		return domainutils.Domain(event.Request.URL), nil
 	}
-	if location == "subdomain" {
+	if location == shared.SubDomainStr {
 		return domainutils.Subdomain(event.Request.URL), nil
 	}
-	if location == "path" {
+	if location == shared.PathStr {
 		return event.Request.Path, nil
 	}
-	if strings.Contains(location, "request_headers") {
+	if strings.Contains(location, shared.RequestHeadersStr) {
 		return stringifyEventObject(event.Request.Headers)
 
 	}
-	if strings.Contains(location, "request_body") {
+	if strings.Contains(location, shared.RequestBodyStr) {
 		return stringifyEventObject(event.Request.Body)
 	}
 
