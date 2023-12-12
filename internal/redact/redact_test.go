@@ -25,12 +25,15 @@ func Test_Redact(t *testing.T) {
 					{KeyPath: "requestBody.keyInt"},
 					{KeyPath: "requestBody.keyFloat"},
 					{KeyPath: "requestBody.nested.key"},
+					{KeyPath: "requestBody.array"},
+					{KeyPath: "requestBody.arrayOfObj[].field1"},
 				},
 			},
 		}
 		config.Set("test.com", cacheVal)
-		Redact(events, config)
+		errors := Redact(events, config)
 
+		require.Len(t, errors, 0)
 		// successfully redacts string key
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["key"])
 		require.Equal(t, "requestBody.key", events[0].MetaData.SensitiveKeys[0].KeyPath)
@@ -47,6 +50,14 @@ func Test_Redact(t *testing.T) {
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["nested"].(map[string]any)["key"])
 		require.Equal(t, "requestBody.nested.key", events[0].MetaData.SensitiveKeys[3].KeyPath)
 		require.Equal(t, "string", events[0].MetaData.SensitiveKeys[3].Type)
+		// successfully redacts array
+		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["array"])
+		require.Equal(t, "requestBody.array", events[0].MetaData.SensitiveKeys[4].KeyPath)
+		require.Equal(t, "slice", events[0].MetaData.SensitiveKeys[4].Type)
+		// successfully redacts nested object within array
+		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["arrayOfObj"].([]map[string]any)[0]["field1"])
+		require.Equal(t, "requestBody.arrayOfObj[].field1", events[0].MetaData.SensitiveKeys[5].KeyPath)
+		require.Equal(t, "string", events[0].MetaData.SensitiveKeys[5].Type)
 	})
 
 	t.Run("Redact sensitive key from response body", func(t *testing.T) {
@@ -142,6 +153,17 @@ func createEvents() []*event.Event {
 				"keyFloat": 1.1,
 				"nested": map[string]any{
 					"key": "value",
+				},
+				"array": []string{"item1", "item2"},
+				"arrayOfObj": []map[string]any{
+					{
+						"field1": "value1",
+						"field2": "value2",
+					},
+					{
+						"field1": "value3",
+						"field2": "value4",
+					},
 				},
 			},
 			Headers: map[string]string{

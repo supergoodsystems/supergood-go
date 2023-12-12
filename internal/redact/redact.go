@@ -113,11 +113,11 @@ func redactEventHelper(fullpath string, path []string, v reflect.Value) ([]event
 		case reflect.Array, reflect.Slice:
 			idx := parseArrayIndex(path[0])
 			if idx > -1 {
-				return redactEventHelper(fullpath, path, v.Index(idx))
+				return redactEventHelper(fullpath, path[1:], v.Index(idx))
 			} else if idx == -1 {
 				results := []event.RedactedKeyMeta{}
 				for i := 0; i < v.Len(); i++ {
-					result, err := redactEventHelper(fullpath, path, v.Index(i))
+					result, err := redactEventHelper(fullpath, path[1:], v.Index(i))
 					if err != nil {
 						return results, err
 					}
