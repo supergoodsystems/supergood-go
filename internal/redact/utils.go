@@ -69,7 +69,6 @@ func getSize(v reflect.Value) int {
 	case reflect.Interface, reflect.Pointer:
 		size += getSize(v.Elem())
 	case reflect.Array, reflect.Slice:
-		// s := reflect.ValueOf(v)
 		for i := 0; i < v.Len(); i++ {
 			size += getSize(v.Index(i))
 		}

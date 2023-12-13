@@ -20,9 +20,6 @@ type RemoteConfigOpts struct {
 	RedactRequestHeaderKeys map[string][]string
 }
 
-// RemoteConfig is the struct that holds to config cache. Note: most of these fields should be private,
-// but because we want to retain supergood.Options and prevent a circular dependency, these are public
-// optionally, we could expose a New() func that takes these in as args to prevent exposing them
 type RemoteConfig struct {
 	baseURL                 string
 	cache                   map[string][]EndpointCacheVal
