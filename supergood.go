@@ -18,6 +18,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/supergoodsystems/supergood-go/internal/event"
+	"github.com/supergoodsystems/supergood-go/internal/redact"
+	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
 )
 
 // Service collates request logs and uploads them to the Supergood API
@@ -32,13 +36,11 @@ type Service struct {
 
 	DefaultClient *http.Client
 
-	options                *Options
-	mutex                  sync.Mutex
-	queue                  map[string]*event
-	close                  chan chan error
-	remoteConfigCacheMutex sync.RWMutex
-	remoteConfigCache      map[string][]endpointCacheVal
-	remoteConfigClose      chan struct{}
+	close   chan chan error
+	mutex   sync.Mutex
+	options *Options
+	queue   map[string]*event.Event
+	rc      remoteconfig.RemoteConfig
 }
 
 // New creates a new supergood service.
@@ -50,28 +52,44 @@ func New(o *Options) (*Service, error) {
 	}
 
 	sg := &Service{
-		options:           o,
-		close:             make(chan chan error),
-		remoteConfigClose: make(chan struct{}),
+		options: o,
+		close:   make(chan chan error),
 	}
 
 	client := http.DefaultClient
 	if sg.options.HTTPClient != nil {
 		client = sg.options.HTTPClient
 	}
-
 	sg.DefaultClient = sg.Wrap(client)
 
+	// Comment: I'd like to have passed sg.options to a New() func
+	// however that requires that the remote config package have a dependency on supergood.Options
+	// which causes a circular dependency. I'd like to avoid moving supergood.Options to a separate package
+	// since it's nicer for end users to initialize the supergood client with a single supergood import
+	// e.g. supergood.New(&supergood.Options{}) instead of supergood.New(&supergoodOptions.Options{})
+	sg.rc = remoteconfig.New(remoteconfig.RemoteConfigOpts{
+		BaseURL:                 sg.options.BaseURL,
+		ClientID:                sg.options.ClientID,
+		ClientSecret:            sg.options.ClientSecret,
+		Client:                  sg.options.HTTPClient,
+		FetchInterval:           sg.options.RemoteConfigFetchInterval,
+		HandleError:             sg.options.OnError,
+		RedactRequestBodyKeys:   sg.options.RedactRequestBodyKeys,
+		RedactResponseBodyKeys:  sg.options.RedactResponseBodyKeys,
+		RedactRequestHeaderKeys: sg.options.RedactRequestHeaderKeys,
+	})
+
 	sg.reset()
+
 	// TODO: dont error on remote config initalization
 	// Do not send events unless we've successfully fetched remote config
-	err = sg.initRemoteConfig()
+	err = sg.rc.Init()
 	if err != nil {
 		return nil, err
 	}
 
 	go sg.loop()
-	go sg.refreshRemoteConfig()
+	go sg.rc.Refresh()
 	return sg, nil
 }
 
@@ -95,19 +113,18 @@ func (sg *Service) Wrap(client *http.Client) *http.Client {
 func (sg *Service) Close() error {
 	ch := make(chan error)
 	sg.close <- ch
-	sg.remoteConfigClose <- struct{}{}
 	close(sg.close)
-	close(sg.remoteConfigClose)
+	sg.rc.Close()
 	return <-ch
 }
 
-func (sg *Service) logRequest(id string, req *request) {
+func (sg *Service) logRequest(id string, req *event.Request, endpointId string) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
-	sg.queue[id] = &event{Request: req}
+	sg.queue[id] = &event.Event{Request: req, MetaData: event.MetaData{EndpointId: endpointId}}
 }
 
-func (sg *Service) logResponse(id string, resp *response) {
+func (sg *Service) logResponse(id string, resp *event.Response) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 	if entry, ok := sg.queue[id]; ok {
@@ -140,13 +157,17 @@ func (sg *Service) flush(force bool) error {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 
-	toSend := []*event{}
+	toSend := []*event.Event{}
 	for key, entry := range sg.queue {
 		if entry.Response == nil && !force {
 			continue
 		}
 		delete(sg.queue, key)
 		toSend = append(toSend, entry)
+		errs := redact.Redact(toSend, &sg.rc)
+		for _, err := range errs {
+			sg.handleError(err)
+		}
 	}
 
 	if len(toSend) == 0 {
@@ -155,13 +176,12 @@ func (sg *Service) flush(force bool) error {
 	return sg.post("/events", toSend)
 }
 
-func (sg *Service) reset() map[string]*event {
+func (sg *Service) reset() map[string]*event.Event {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 
 	entries := sg.queue
-	sg.queue = map[string]*event{}
-	sg.remoteConfigCache = map[string][]endpointCacheVal{}
+	sg.queue = map[string]*event.Event{}
 	return entries
 }
 
