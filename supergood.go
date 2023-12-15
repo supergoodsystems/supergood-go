@@ -118,10 +118,10 @@ func (sg *Service) Close() error {
 	return <-ch
 }
 
-func (sg *Service) logRequest(id string, req *event.Request) {
+func (sg *Service) logRequest(id string, req *event.Request, endpointId string) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
-	sg.queue[id] = &event.Event{Request: req}
+	sg.queue[id] = &event.Event{Request: req, MetaData: event.MetaData{EndpointId: endpointId}}
 }
 
 func (sg *Service) logResponse(id string, resp *event.Response) {

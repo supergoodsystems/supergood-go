@@ -11,43 +11,34 @@ import (
 
 // Redact removes the sensitive keys provided in remote config cache
 // NOTE: Redact modifies events and appends redacted info to the event object
+// NOTE: Redact is expecting that the endpoint Id for the event has been successfully populated
+// during event creation
 func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
 	var errs []error
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
-
 		endpoints := rc.Get(domain)
 		if len(endpoints) == 0 {
 			continue
 		}
-		for _, endpoint := range endpoints {
-			if len(endpoint.SensitiveKeys) == 0 {
-				continue
-			}
-			testVal, err := event.StringifyAtLocation(e, endpoint.Location)
+		endpoint, ok := endpoints[e.MetaData.EndpointId]
+		if !ok {
+			continue
+		}
+
+		for _, sensitiveKey := range endpoint.SensitiveKeys {
+			formattedParts, err := formatSensitiveKey(sensitiveKey.KeyPath)
 			if err != nil {
 				errs = append(errs, err)
 				continue
 			}
-			testByteArray := []byte(fmt.Sprintf("%v", testVal))
-			match := endpoint.Regex.Match(testByteArray)
-			if !match {
+			// TODO: pass down empty string and build out path as i traverse
+			meta, err := redactEvent(sensitiveKey.KeyPath, formattedParts, e)
+			if err != nil {
+				errs = append(errs, err)
 				continue
 			}
-
-			for _, sensitiveKey := range endpoint.SensitiveKeys {
-				formattedParts, err := formatSensitiveKey(sensitiveKey.KeyPath)
-				if err != nil {
-					errs = append(errs, err)
-					continue
-				}
-				meta, err := redactEvent(sensitiveKey.KeyPath, formattedParts, e)
-				if err != nil {
-					errs = append(errs, err)
-					continue
-				}
-				e.MetaData.SensitiveKeys = append(e.MetaData.SensitiveKeys, meta...)
-			}
+			e.MetaData.SensitiveKeys = append(e.MetaData.SensitiveKeys, meta...)
 		}
 	}
 	return errs

@@ -9,7 +9,6 @@ import (
 
 type RemoteConfigOpts struct {
 	BaseURL                 string
-	Cache                   map[string][]EndpointCacheVal
 	ClientID                string
 	ClientSecret            string
 	Client                  *http.Client
@@ -22,7 +21,7 @@ type RemoteConfigOpts struct {
 
 type RemoteConfig struct {
 	baseURL                 string
-	cache                   map[string][]EndpointCacheVal
+	cache                   map[string]map[string]EndpointCacheVal
 	clientID                string
 	clientSecret            string
 	client                  *http.Client
@@ -70,6 +69,7 @@ type SensitiveKeys struct {
 }
 
 type EndpointCacheVal struct {
+	Id            string
 	Regex         regexp.Regexp
 	Location      string
 	Action        string

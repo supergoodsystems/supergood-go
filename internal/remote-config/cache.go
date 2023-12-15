@@ -8,7 +8,7 @@ import (
 )
 
 // Get retrieves an object from the remote config cache
-func (rc *RemoteConfig) Get(domain string) []EndpointCacheVal {
+func (rc *RemoteConfig) Get(domain string) map[string]EndpointCacheVal {
 	rc.mutex.RLock()
 	defer rc.mutex.RUnlock()
 	val := rc.cache[domain]
@@ -16,7 +16,7 @@ func (rc *RemoteConfig) Get(domain string) []EndpointCacheVal {
 }
 
 // Set sets an endpoint cache val into the remote config cache
-func (rc *RemoteConfig) Set(domain string, val []EndpointCacheVal) error {
+func (rc *RemoteConfig) Set(domain string, val map[string]EndpointCacheVal) error {
 	if rc.cache == nil {
 		return fmt.Errorf("failed to set cache val in remote config cache. remote config cachee not initialized")
 	}
@@ -30,9 +30,9 @@ func (rc *RemoteConfig) Set(domain string, val []EndpointCacheVal) error {
 // creates a remote config cache object used by supergood client to ignore/allow requests and
 // to redact sensitive keys
 func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
-	remoteConfigMap := map[string][]EndpointCacheVal{}
+	remoteConfigMap := map[string]map[string]EndpointCacheVal{}
 	for _, config := range remoteConfigArray {
-		cacheVal := []EndpointCacheVal{}
+		cacheVal := map[string]EndpointCacheVal{}
 		for _, endpoint := range config.Endpoints {
 			if endpoint.MatchingRegex.Regex == "" || endpoint.MatchingRegex.Location == "" {
 				continue
@@ -42,12 +42,13 @@ func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 				return err
 			}
 			endpointCacheVal := EndpointCacheVal{
+				Id:            endpoint.Id,
 				Regex:         *regex,
 				Location:      endpoint.MatchingRegex.Location,
 				Action:        endpoint.EndpointConfiguration.Action,
 				SensitiveKeys: rc.mergeSensitiveKeysOptions(config.Domain, endpoint.EndpointConfiguration.SensitiveKeys),
 			}
-			cacheVal = append(cacheVal, endpointCacheVal)
+			cacheVal[endpoint.Id] = endpointCacheVal
 		}
 		err := rc.Set(config.Domain, cacheVal)
 		if err != nil {

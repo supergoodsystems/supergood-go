@@ -38,11 +38,11 @@ func StringifyAtLocation(event *Event, location string) (string, error) {
 }
 
 func stringifyEventObject(obj interface{}) (string, error) {
-	headerBytes, err := json.Marshal(obj)
+	bytes, err := json.Marshal(obj)
 	if err != nil {
 		return "", err
 	}
-	return string(headerBytes), nil
+	return string(bytes), nil
 }
 
 func headersToMap(h http.Header) map[string]string {

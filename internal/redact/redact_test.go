@@ -15,22 +15,20 @@ func Test_Redact(t *testing.T) {
 		events := createEvents()
 		config := createRemoteConfig()
 		regex, _ := regexp.Compile("test-endpoint")
-		cacheVal := []remoteconfig.EndpointCacheVal{
-			{
-				Regex:    *regex,
-				Location: "path",
-				Action:   "Accept",
-				SensitiveKeys: []remoteconfig.SensitiveKeys{
-					{KeyPath: "requestBody.key"},
-					{KeyPath: "requestBody.keyInt"},
-					{KeyPath: "requestBody.keyFloat"},
-					{KeyPath: "requestBody.nested.key"},
-					{KeyPath: "requestBody.array"},
-					{KeyPath: "requestBody.arrayOfObj[].field1"},
-				},
+		cacheVal := remoteconfig.EndpointCacheVal{
+			Regex:    *regex,
+			Location: "path",
+			Action:   "Accept",
+			SensitiveKeys: []remoteconfig.SensitiveKeys{
+				{KeyPath: "requestBody.key"},
+				{KeyPath: "requestBody.keyInt"},
+				{KeyPath: "requestBody.keyFloat"},
+				{KeyPath: "requestBody.nested.key"},
+				{KeyPath: "requestBody.array"},
+				{KeyPath: "requestBody.arrayOfObj[].field1"},
 			},
 		}
-		config.Set("test.com", cacheVal)
+		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
 		errors := Redact(events, config)
 
 		require.Len(t, errors, 0)
@@ -64,20 +62,18 @@ func Test_Redact(t *testing.T) {
 		events := createEvents()
 		config := createRemoteConfig()
 		regex, _ := regexp.Compile("test-endpoint")
-		cacheVal := []remoteconfig.EndpointCacheVal{
-			{
-				Regex:    *regex,
-				Location: "path",
-				Action:   "Accept",
-				SensitiveKeys: []remoteconfig.SensitiveKeys{
-					{KeyPath: "responseBody.key"},
-					{KeyPath: "responseBody.keyInt"},
-					{KeyPath: "responseBody.keyFloat"},
-					{KeyPath: "responseBody.nested.key"},
-				},
+		cacheVal := remoteconfig.EndpointCacheVal{
+			Regex:    *regex,
+			Location: "path",
+			Action:   "Accept",
+			SensitiveKeys: []remoteconfig.SensitiveKeys{
+				{KeyPath: "responseBody.key"},
+				{KeyPath: "responseBody.keyInt"},
+				{KeyPath: "responseBody.keyFloat"},
+				{KeyPath: "responseBody.nested.key"},
 			},
 		}
-		config.Set("test.com", cacheVal)
+		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
 		errors := Redact(events, config)
 		require.Len(t, errors, 0)
 		// successfully redacts string key
@@ -102,15 +98,13 @@ func Test_Redact(t *testing.T) {
 		events := createEvents()
 		config := createRemoteConfig()
 		regex, _ := regexp.Compile("test-endpoint")
-		cacheVal := []remoteconfig.EndpointCacheVal{
-			{
-				Regex:         *regex,
-				Location:      "path",
-				Action:        "Accept",
-				SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestHeaders.key"}},
-			},
+		cacheVal := remoteconfig.EndpointCacheVal{
+			Regex:         *regex,
+			Location:      "path",
+			Action:        "Accept",
+			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestHeaders.key"}},
 		}
-		config.Set("test.com", cacheVal)
+		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
 		errors := Redact(events, config)
 		require.Len(t, errors, 0)
 		require.Equal(t, "", events[0].Request.Headers["key"])
@@ -120,17 +114,47 @@ func Test_Redact(t *testing.T) {
 		events := createEvents()
 		config := createRemoteConfig()
 		regex, _ := regexp.Compile("test-endpoint")
-		cacheVal := []remoteconfig.EndpointCacheVal{
-			{
-				Regex:         *regex,
-				Location:      "path",
-				Action:        "Accept",
-				SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestBody.non-existant-key"}},
-			},
+		cacheVal := remoteconfig.EndpointCacheVal{
+			Regex:         *regex,
+			Location:      "path",
+			Action:        "Accept",
+			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestBody.non-existant-key"}},
 		}
-		config.Set("test.com", cacheVal)
+		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
 		errors := Redact(events, config)
 		require.Len(t, errors, 1)
+	})
+
+	t.Run("Does not redact in case no matching domain in cache", func(t *testing.T) {
+		events := createEvents()
+		config := createRemoteConfig()
+		regex, _ := regexp.Compile("test-endpoint")
+		cacheVal := remoteconfig.EndpointCacheVal{
+			Regex:         *regex,
+			Location:      "path",
+			Action:        "Accept",
+			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestHeaders.key"}},
+		}
+		config.Set("not-test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
+		errors := Redact(events, config)
+		require.Len(t, errors, 0)
+		require.Equal(t, "value", events[0].Request.Headers["key"])
+	})
+
+	t.Run("Does not redact in case no matching endpoint in cache", func(t *testing.T) {
+		events := createEvents()
+		config := createRemoteConfig()
+		regex, _ := regexp.Compile("test-endpoint")
+		cacheVal := remoteconfig.EndpointCacheVal{
+			Regex:         *regex,
+			Location:      "path",
+			Action:        "Accept",
+			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestHeaders.key"}},
+		}
+		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"non-matching-endpoint-id": cacheVal})
+		errors := Redact(events, config)
+		require.Len(t, errors, 0)
+		require.Equal(t, "value", events[0].Request.Headers["key"])
 	})
 }
 
@@ -179,6 +203,9 @@ func createEvents() []*event.Event {
 					"key": "value",
 				},
 			},
+		},
+		MetaData: event.MetaData{
+			EndpointId: "endpointId",
 		},
 	}
 	events = append(events, event)

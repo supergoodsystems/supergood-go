@@ -1,4 +1,4 @@
-package ignore
+package remoteconfig
 
 import (
 	"bytes"
@@ -9,27 +9,20 @@ import (
 	"strings"
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
-	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
 	"github.com/supergoodsystems/supergood-go/internal/shared"
 )
 
-// ShouldIgnoreRequest evaluates based off the remote config cache whether an intercepted
-// request should be forwarded to supergood
-func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig) (bool, []error) {
+func (rc *RemoteConfig) MatchRequestAgainstEndpoints(req *http.Request) (*EndpointCacheVal, []error) {
 	var errs []error
 	domain := domainutils.GetDomainFromHost(req.Host)
 	if domain == "" {
-		return false, errs
+		return nil, errs
 	}
-
 	endpoints := rc.Get(domain)
 	if len(endpoints) == 0 {
-		return false, errs
+		return nil, errs
 	}
 	for _, endpoint := range endpoints {
-		if endpoint.Action != "Ignore" {
-			continue
-		}
 		testVal, err := stringifyRequestAtLocation(req, endpoint.Location)
 		if err != nil {
 			errs = append(errs, err)
@@ -38,10 +31,10 @@ func ShouldIgnoreRequest(req *http.Request, rc *remoteconfig.RemoteConfig) (bool
 		testByteArray := []byte(fmt.Sprintf("%v", testVal))
 		match := endpoint.Regex.Match(testByteArray)
 		if match {
-			return true, errs
+			return &endpoint, errs
 		}
 	}
-	return false, errs
+	return nil, errs
 }
 
 // stringifyRequestAtLocation takes an endpoint location, which is used to uniquely classify

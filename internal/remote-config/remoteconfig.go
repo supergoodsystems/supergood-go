@@ -8,7 +8,7 @@ import (
 func New(opts RemoteConfigOpts) RemoteConfig {
 	return RemoteConfig{
 		baseURL:                 opts.BaseURL,
-		cache:                   map[string][]EndpointCacheVal{},
+		cache:                   map[string]map[string]EndpointCacheVal{},
 		clientID:                opts.ClientID,
 		clientSecret:            opts.ClientSecret,
 		client:                  opts.Client,

@@ -1,6 +1,8 @@
 package event
 
-import "time"
+import (
+	"time"
+)
 
 type Event struct {
 	Request  *Request  `json:"request"`
@@ -30,6 +32,7 @@ type Response struct {
 
 type MetaData struct {
 	SensitiveKeys []RedactedKeyMeta `json:"sensitiveKeys"`
+	EndpointId    string            `json:"endpointId"`
 }
 
 type RedactedKeyMeta struct {
