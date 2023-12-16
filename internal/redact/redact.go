@@ -66,7 +66,7 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 			{
 				KeyPath: reformatSensitiveKeyPath(createdPath),
 				Length:  size,
-				Type:    v.Type().Kind().String(),
+				Type:    formatKind()(v.Type().Kind()),
 			},
 		}, nil
 	} else {
@@ -88,17 +88,17 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 			}
 			if len(pathParts) == 1 {
 				size := getSize(mapVal)
-				// Attempting to marshal into underlying type
-				objKind := mapVal.Type().Kind().String()
+				objKind := mapVal.Type().Kind()
+				// sometimes mapVals are interfaces or pointers - make sure to get the underlying type
 				if mapVal.Kind() == reflect.Interface || mapVal.Kind() == reflect.Pointer {
-					objKind = mapVal.Elem().Type().Kind().String()
+					objKind = mapVal.Elem().Type().Kind()
 				}
 				v.SetMapIndex(idx, reflect.Zero(v.Type().Elem()))
 				return []event.RedactedKeyMeta{
 					{
 						KeyPath: reformatSensitiveKeyPath(formatFieldPathPart(createdPath, pathParts[0])),
 						Length:  size,
-						Type:    objKind,
+						Type:    formatKind()(objKind),
 					},
 				}, nil
 			} else {

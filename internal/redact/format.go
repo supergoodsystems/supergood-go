@@ -2,6 +2,7 @@ package redact
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -80,4 +81,44 @@ func formatArrayPathPart(path string, index int) string {
 
 func formatFieldPathPart(path, current string) string {
 	return path + "." + current
+}
+
+// formatKind attempts to convert a reflected kind value
+// to something that the supergood backend can understand
+// for anomaly detection. Ideally this should be standardized
+// against a non javascript native type (doesnt really do it below e.g. "invalid"/ "ptr")
+func formatKind() func(reflect.Kind) string {
+	kindMap := map[reflect.Kind]string{
+		reflect.Invalid:       "invalid",
+		reflect.Bool:          "boolean",
+		reflect.Int:           "integer",
+		reflect.Int8:          "integer",
+		reflect.Int16:         "integer",
+		reflect.Int32:         "integer",
+		reflect.Int64:         "integer",
+		reflect.Uint:          "integer",
+		reflect.Uint8:         "integer",
+		reflect.Uint16:        "integer",
+		reflect.Uint32:        "integer",
+		reflect.Uint64:        "integer",
+		reflect.Uintptr:       "ptr",
+		reflect.Float32:       "float",
+		reflect.Float64:       "float",
+		reflect.Complex64:     "float",
+		reflect.Complex128:    "float",
+		reflect.Array:         "array",
+		reflect.Chan:          "channel",
+		reflect.Func:          "function",
+		reflect.Interface:     "interface",
+		reflect.Map:           "object",
+		reflect.Pointer:       "ptr",
+		reflect.Slice:         "array",
+		reflect.String:        "string",
+		reflect.Struct:        "object",
+		reflect.UnsafePointer: "ptry",
+	}
+
+	return func(kind reflect.Kind) string {
+		return kindMap[kind]
+	}
 }

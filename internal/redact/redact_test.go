@@ -39,11 +39,11 @@ func Test_Redact(t *testing.T) {
 		// successfully redacts int key
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["keyInt"])
 		require.Equal(t, "requestBody.keyInt", events[0].MetaData.SensitiveKeys[1].KeyPath)
-		require.Equal(t, "int", events[0].MetaData.SensitiveKeys[1].Type)
+		require.Equal(t, "integer", events[0].MetaData.SensitiveKeys[1].Type)
 		// successfully redacts int float
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["keyFloat"])
 		require.Equal(t, "requestBody.keyFloat", events[0].MetaData.SensitiveKeys[2].KeyPath)
-		require.Equal(t, "float64", events[0].MetaData.SensitiveKeys[2].Type)
+		require.Equal(t, "float", events[0].MetaData.SensitiveKeys[2].Type)
 		// successfully redacts nested string key
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["nested"].(map[string]any)["key"])
 		require.Equal(t, "requestBody.nested.key", events[0].MetaData.SensitiveKeys[3].KeyPath)
@@ -51,7 +51,7 @@ func Test_Redact(t *testing.T) {
 		// successfully redacts array
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["array"])
 		require.Equal(t, "requestBody.array", events[0].MetaData.SensitiveKeys[4].KeyPath)
-		require.Equal(t, "slice", events[0].MetaData.SensitiveKeys[4].Type)
+		require.Equal(t, "array", events[0].MetaData.SensitiveKeys[4].Type)
 		// successfully redacts nested object within array
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["arrayOfObj"].([]map[string]any)[0]["field1"])
 		require.Equal(t, "requestBody.arrayOfObj[0].field1", events[0].MetaData.SensitiveKeys[5].KeyPath)
@@ -83,11 +83,11 @@ func Test_Redact(t *testing.T) {
 		// successfully redacts int key
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["keyInt"])
 		require.Equal(t, "responseBody.keyInt", events[0].MetaData.SensitiveKeys[1].KeyPath)
-		require.Equal(t, "int", events[0].MetaData.SensitiveKeys[1].Type)
+		require.Equal(t, "integer", events[0].MetaData.SensitiveKeys[1].Type)
 		// successfully redacts int float
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["keyFloat"])
 		require.Equal(t, "responseBody.keyFloat", events[0].MetaData.SensitiveKeys[2].KeyPath)
-		require.Equal(t, "float64", events[0].MetaData.SensitiveKeys[2].Type)
+		require.Equal(t, "float", events[0].MetaData.SensitiveKeys[2].Type)
 		// successfully redacts nested string key
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["nested"].(map[string]any)["key"])
 		require.Equal(t, "responseBody.nested.key", events[0].MetaData.SensitiveKeys[3].KeyPath)
