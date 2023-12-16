@@ -9,4 +9,9 @@ const (
 	RequestBodyStr     = "requestBody"
 	ResponseHeadersStr = "responseHeaders"
 	ResponseBodyStr    = "responseBody"
+
+	RequestHeadersSplitStr  = "Request.Headers"
+	RequestBodySplitStr     = "Request.Body"
+	ResponseHeadersSplitStr = "Response.Headers"
+	ResponseBodySplitStr    = "Response.Body"
 )
