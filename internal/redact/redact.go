@@ -12,7 +12,7 @@ import (
 // Redact removes the sensitive keys provided in remote config cache
 // NOTE: Redact modifies events and appends redacted info to the event object
 // NOTE: Redact is expecting that the endpoint Id for the event has been successfully populated
-// during event
+// during event creation
 func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
 	var errs []error
 	for _, e := range events {
