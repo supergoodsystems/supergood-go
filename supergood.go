@@ -213,7 +213,6 @@ func (sg *Service) logError(e error) error {
 		return nil
 	}
 
-	// TODO: we don't currently include the data or the config
 	return sg.post("/errors", &errorReport{
 		Error:   e.Error(),
 		Message: e.Error(),

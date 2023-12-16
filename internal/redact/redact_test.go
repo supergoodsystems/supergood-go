@@ -54,7 +54,7 @@ func Test_Redact(t *testing.T) {
 		require.Equal(t, "slice", events[0].MetaData.SensitiveKeys[4].Type)
 		// successfully redacts nested object within array
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["arrayOfObj"].([]map[string]any)[0]["field1"])
-		require.Equal(t, "requestBody.arrayOfObj[].field1", events[0].MetaData.SensitiveKeys[5].KeyPath)
+		require.Equal(t, "requestBody.arrayOfObj[0].field1", events[0].MetaData.SensitiveKeys[5].KeyPath)
 		require.Equal(t, "string", events[0].MetaData.SensitiveKeys[5].Type)
 	})
 
