@@ -66,7 +66,7 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 			{
 				KeyPath: reformatSensitiveKeyPath(createdPath),
 				Length:  size,
-				Type:    formatKind()(v.Type().Kind()),
+				Type:    formatKind(v.Type().Kind()),
 			},
 		}, nil
 	} else {
@@ -98,7 +98,7 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 					{
 						KeyPath: reformatSensitiveKeyPath(formatFieldPathPart(createdPath, pathParts[0])),
 						Length:  size,
-						Type:    formatKind()(objKind),
+						Type:    formatKind(objKind),
 					},
 				}, nil
 			} else {

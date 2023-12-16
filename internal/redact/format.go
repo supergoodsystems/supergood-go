@@ -87,7 +87,7 @@ func formatFieldPathPart(path, current string) string {
 // to something that the supergood backend can understand
 // for anomaly detection. Ideally this should be standardized
 // against a non javascript native type (doesnt really do it below e.g. "invalid"/ "ptr")
-func formatKind() func(reflect.Kind) string {
+func formatKind(kind reflect.Kind) string {
 	kindMap := map[reflect.Kind]string{
 		reflect.Invalid:       "invalid",
 		reflect.Bool:          "boolean",
@@ -117,8 +117,5 @@ func formatKind() func(reflect.Kind) string {
 		reflect.Struct:        "object",
 		reflect.UnsafePointer: "ptry",
 	}
-
-	return func(kind reflect.Kind) string {
-		return kindMap[kind]
-	}
+	return kindMap[kind]
 }
