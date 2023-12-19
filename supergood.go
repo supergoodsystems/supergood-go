@@ -161,15 +161,17 @@ func (sg *Service) flush(force bool) error {
 		}
 		delete(sg.queue, key)
 		toSend = append(toSend, entry)
-		errs := redact.Redact(toSend, &sg.rc)
-		for _, err := range errs {
-			sg.handleError(err)
-		}
 	}
 
 	if len(toSend) == 0 {
 		return nil
 	}
+
+	errs := redact.Redact(toSend, &sg.rc)
+	for _, err := range errs {
+		sg.handleError(err)
+	}
+
 	return sg.post("/events", toSend)
 }
 
