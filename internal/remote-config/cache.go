@@ -27,7 +27,7 @@ func (rc *RemoteConfig) Set(domain string, val map[string]EndpointCacheVal) erro
 }
 
 func (rc *RemoteConfig) IsInitialized() bool {
-	return rc.cache == nil
+	return rc.initialized
 }
 
 // Create takes in the response body marshalled from the /config request and

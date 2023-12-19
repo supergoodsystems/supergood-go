@@ -20,6 +20,7 @@ var events []*event.Event
 var errorReports []*errorReport
 var broken bool
 var twiceBroken bool
+var remoteConfigBroken bool
 
 func reset() {
 	events = []*event.Event{}
@@ -112,7 +113,7 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if r.URL.Path == "/config" && r.Method == "GET" {
+		if r.URL.Path == "/config" && r.Method == "GET" && !remoteConfigBroken {
 			remoteConfig := []remoteconfig.RemoteConfigResponse{
 				{
 					Id:     "test-id-ignore",
@@ -387,5 +388,20 @@ func Test_Supergood(t *testing.T) {
 		close(mockServerChannel)
 
 		require.Len(t, events, 1)
+	})
+
+	t.Run("handling failed remote config initialization", func(t *testing.T) {
+		allowedUrl := "https://supergood-testbed.herokuapp.com/200"
+		remoteConfigBroken = true
+		defer func() { remoteConfigBroken = false }()
+		reset()
+
+		sg, err := New(&Options{})
+		require.NoError(t, err)
+		sg.DefaultClient.Get(allowedUrl)
+
+		require.NoError(t, sg.Close())
+		// Does not capture events on failed remote config initialization
+		require.Len(t, events, 0)
 	})
 }

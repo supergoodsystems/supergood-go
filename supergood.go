@@ -80,7 +80,10 @@ func New(o *Options) (*Service, error) {
 	})
 
 	sg.reset()
-	sg.rc.Init()
+	err = sg.rc.Init()
+	if err != nil {
+		sg.handleError(err)
+	}
 
 	go sg.loop()
 	go sg.rc.Refresh()
