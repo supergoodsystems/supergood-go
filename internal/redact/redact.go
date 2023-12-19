@@ -32,7 +32,7 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
 				errs = append(errs, err)
 				continue
 			}
-			meta, err := redactEvent(sensitiveKey.KeyPath, formattedParts, e)
+			meta, err := redactEvent(domain, e.Request.URL, sensitiveKey.KeyPath, formattedParts, e)
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -43,8 +43,8 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
 	return errs
 }
 
-func redactEvent(originalPath string, path []string, v any) ([]event.RedactedKeyMeta, error) {
-	return redactEventHelper(originalPath, path, reflect.ValueOf(v).Elem(), "")
+func redactEvent(domain string, url string, originalPath string, path []string, v any) ([]event.RedactedKeyMeta, error) {
+	return redactEventHelper(domain, url, originalPath, path, reflect.ValueOf(v).Elem(), "")
 }
 
 // redactEventHelper recursively redacts fields based off a provided path
@@ -52,14 +52,14 @@ func redactEvent(originalPath string, path []string, v any) ([]event.RedactedKey
 // path: is the split stringed representation of the fullpath. contains the remaining path elements to be traversed
 // v: is the reflected value at the current path
 // createdPath: is the recursively built path. Difference between fullpath and createdpath is that createdPath will contain array indexes
-func redactEventHelper(originalPath string, pathParts []string, v reflect.Value, createdPath string) ([]event.RedactedKeyMeta, error) {
+func redactEventHelper(domain, url, originalPath string, pathParts []string, v reflect.Value, createdPath string) ([]event.RedactedKeyMeta, error) {
 	if !v.IsValid() {
-		return nil, fmt.Errorf("unable to find key at sensitive key provided path: %s", originalPath)
+		return nil, fmt.Errorf("unable to find key at sensitive key for URL: %s, domain: %s, provided path: %s", domain, url, originalPath)
 	}
 	if len(pathParts) == 0 {
 		size := getSize(v)
 		if !v.CanSet() {
-			return nil, fmt.Errorf("unable to redact at sensitive key provided path: %s", originalPath)
+			return nil, fmt.Errorf("unable to redact at sensitive key for URL: %s, domain: %s, path: %s", domain, url, originalPath)
 		}
 		v.Set(reflect.Zero(v.Type()))
 		return []event.RedactedKeyMeta{
@@ -72,10 +72,10 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 	} else {
 		switch v.Type().Kind() {
 		case reflect.Ptr, reflect.Interface:
-			return redactEventHelper(originalPath, pathParts, v.Elem(), createdPath)
+			return redactEventHelper(domain, url, originalPath, pathParts, v.Elem(), createdPath)
 
 		case reflect.Struct:
-			return redactEventHelper(originalPath, pathParts[1:], v.FieldByName(pathParts[0]), formatFieldPathPart(createdPath, pathParts[0]))
+			return redactEventHelper(domain, url, originalPath, pathParts[1:], v.FieldByName(pathParts[0]), formatFieldPathPart(createdPath, pathParts[0]))
 
 		case reflect.Map:
 			// You can't mutate elements of a map, but as a special case if we just
@@ -84,14 +84,18 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 			idx := reflect.ValueOf(pathParts[0])
 			mapVal := v.MapIndex(idx)
 			if !mapVal.IsValid() {
-				return nil, fmt.Errorf("unable to find key at sensitive key provided path: %s", originalPath)
+				return nil, fmt.Errorf("unable to find key at sensitive key for URL: %s, domain: %s, path: %s", url, domain, originalPath)
 			}
 			if len(pathParts) == 1 {
 				size := getSize(mapVal)
 				objKind := mapVal.Type().Kind()
 				// sometimes mapVals are interfaces or pointers - make sure to get the underlying type
 				if mapVal.Kind() == reflect.Interface || mapVal.Kind() == reflect.Pointer {
-					objKind = mapVal.Elem().Type().Kind()
+					if !mapVal.Elem().IsValid() {
+						objKind = reflect.Invalid
+					} else {
+						objKind = mapVal.Elem().Type().Kind()
+					}
 				}
 				v.SetMapIndex(idx, reflect.Zero(v.Type().Elem()))
 				return []event.RedactedKeyMeta{
@@ -102,7 +106,7 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 					},
 				}, nil
 			} else {
-				return redactEventHelper(originalPath, pathParts[1:], mapVal, formatFieldPathPart(createdPath, pathParts[0]))
+				return redactEventHelper(domain, url, originalPath, pathParts[1:], mapVal, formatFieldPathPart(createdPath, pathParts[0]))
 			}
 
 		case reflect.Array, reflect.Slice:
@@ -113,7 +117,7 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 
 			results := []event.RedactedKeyMeta{}
 			for i := 0; i < v.Len(); i++ {
-				result, err := redactEventHelper(originalPath, pathParts[1:], v.Index(i), formatArrayPathPart(createdPath, i))
+				result, err := redactEventHelper(domain, url, originalPath, pathParts[1:], v.Index(i), formatArrayPathPart(createdPath, i))
 				if err != nil {
 					return results, err
 				}
@@ -122,7 +126,7 @@ func redactEventHelper(originalPath string, pathParts []string, v reflect.Value,
 			return results, nil
 
 		default:
-			return nil, fmt.Errorf("redact.Redact: unsupported type %v", v.Type().String())
+			return nil, fmt.Errorf("redact.Redact: unsupported type %v for URL: %s, domain: %s,", v.Type().String(), url, domain)
 		}
 	}
 }
