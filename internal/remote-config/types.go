@@ -27,6 +27,7 @@ type RemoteConfig struct {
 	client                  *http.Client
 	close                   chan struct{}
 	fetchInterval           time.Duration
+	initialized             bool
 	handleError             func(error)
 	mutex                   sync.RWMutex
 	redactRequestBodyKeys   map[string][]string
