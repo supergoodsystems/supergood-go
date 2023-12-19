@@ -351,17 +351,19 @@ func Test_Supergood(t *testing.T) {
 	t.Run("handling invalid client id", func(t *testing.T) {
 		var logErr error
 		_, err := New(&Options{OnError: func(e error) { logErr = e }, ClientID: "oops"})
-		require.Error(t, err, "invalid ClientID")
-		require.NoError(t, logErr)
+		require.NoError(t, err)
+		require.Error(t, logErr, "invalid ClientID")
 	})
 
 	t.Run("handling broken base url", func(t *testing.T) {
-
+		var logErr error
 		_, err := New(&Options{
 			BaseURL:       "https://localhost:1",
 			FlushInterval: 1 * time.Millisecond,
+			OnError:       func(e error) { logErr = e },
 		})
-		require.Error(t, err, "connection refused")
+		require.NoError(t, err)
+		require.Error(t, logErr, "connection refused")
 	})
 
 	t.Run("tesing http clients passed as options", func(t *testing.T) {

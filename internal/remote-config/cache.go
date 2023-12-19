@@ -26,11 +26,14 @@ func (rc *RemoteConfig) Set(domain string, val map[string]EndpointCacheVal) erro
 	return nil
 }
 
+func (rc *RemoteConfig) IsInitialized() bool {
+	return rc.cache == nil
+}
+
 // Create takes in the response body marshalled from the /config request and
 // creates a remote config cache object used by supergood client to ignore/allow requests and
 // to redact sensitive keys
 func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
-	remoteConfigMap := map[string]map[string]EndpointCacheVal{}
 	for _, config := range remoteConfigArray {
 		cacheVal := map[string]EndpointCacheVal{}
 		for _, endpoint := range config.Endpoints {
@@ -54,7 +57,6 @@ func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 		if err != nil {
 			return err
 		}
-		remoteConfigMap[config.Domain] = cacheVal
 	}
 	return nil
 }

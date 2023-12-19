@@ -14,6 +14,7 @@ func New(opts RemoteConfigOpts) RemoteConfig {
 		client:                  opts.Client,
 		close:                   make(chan struct{}),
 		fetchInterval:           opts.FetchInterval,
+		initialized:             false,
 		handleError:             opts.HandleError,
 		redactRequestBodyKeys:   opts.RedactRequestBodyKeys,
 		redactResponseBodyKeys:  opts.RedactResponseBodyKeys,
@@ -22,8 +23,13 @@ func New(opts RemoteConfigOpts) RemoteConfig {
 }
 
 // Init initializes the remote config cache
-func (rc *RemoteConfig) Init() error {
-	return rc.fetchAndSetConfig()
+// Does not return an error - do not want to prevent client app from starting
+// due to a failed config fetch from supergood
+func (rc *RemoteConfig) Init() {
+	err := rc.fetchAndSetConfig()
+	if err != nil {
+		rc.handleError(err)
+	}
 }
 
 // RefreshRemoteConfig refreshes the remote config on an interval
@@ -49,5 +55,10 @@ func (rc *RemoteConfig) fetchAndSetConfig() error {
 		return err
 	}
 
-	return rc.Create(resp)
+	err = rc.Create(resp)
+	if err != nil {
+		rc.initialized = true
+	}
+
+	return err
 }

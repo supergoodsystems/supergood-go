@@ -80,13 +80,7 @@ func New(o *Options) (*Service, error) {
 	})
 
 	sg.reset()
-
-	// TODO: dont error on remote config initalization
-	// Do not send events unless we've successfully fetched remote config
-	err = sg.rc.Init()
-	if err != nil {
-		return nil, err
-	}
+	sg.rc.Init()
 
 	go sg.loop()
 	go sg.rc.Refresh()
