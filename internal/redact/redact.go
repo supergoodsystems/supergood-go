@@ -126,7 +126,7 @@ func redactEventHelper(domain, url, originalPath string, pathParts []string, v r
 			return results, nil
 
 		default:
-			return nil, fmt.Errorf("redact.Redact: unsupported type %v for URL: %s, domain: %s,", v.Type().String(), url, domain)
+			return nil, fmt.Errorf("redact.Redact: unsupported type %v for URL: %s, domain: %s, path: %s", v.Type().String(), url, domain, originalPath)
 		}
 	}
 }
