@@ -12,20 +12,28 @@ import (
 // sensitive keys are of the form requestHeaders, responseBody etc. These values must
 // be mapped to fields in the parsed supergood event
 func formatSensitiveKey(keyPath string) ([]string, error) {
+	if len(keyPath) == 0 {
+		return []string{}, fmt.Errorf("invalid sensitive key value provided: %s", keyPath)
+	}
 	parts := strings.Split(keyPath, ".")
 	remainingParts := []string{}
+	first := parts[0]
 
-	switch parts[0] {
-	case shared.RequestHeadersStr:
+	if strings.Contains(first, shared.RequestHeadersStr) {
 		remainingParts = append(remainingParts, "Request", "Headers")
-	case shared.RequestBodyStr:
+	} else if strings.Contains(first, shared.RequestBodyStr) {
 		remainingParts = append(remainingParts, "Request", "Body")
-	case shared.ResponseHeadersStr:
+	} else if strings.Contains(first, shared.ResponseHeadersStr) {
 		remainingParts = append(remainingParts, "Response", "Headers")
-	case shared.ResponseBodyStr:
+	} else if strings.Contains(first, shared.ResponseBodyStr) {
 		remainingParts = append(remainingParts, "Response", "Body")
-	default:
+	} else {
 		return []string{}, fmt.Errorf("invalid sensitive key value provided: %s", keyPath)
+	}
+
+	// Check to make sure the first element was not an array (e.g. responseBody[])
+	if strings.Contains(first, "[]") {
+		remainingParts = append(remainingParts, "[]")
 	}
 
 	// Attempting to format indexed array elements (e.g. responseBody.nested.array[].field1)
