@@ -193,8 +193,11 @@ func (sg *Service) logError(e error) error {
 	})
 }
 
-func (sg *Service) logTelemtry(t telemetry) error {
-	return sg.post("/telemetry", t)
+func (sg *Service) logTelemtry(t telemetry) {
+	err := sg.post("/telemetry", t)
+	if err != nil {
+		sg.handleError(err)
+	}
 }
 
 func (sg *Service) post(path string, body any) error {
