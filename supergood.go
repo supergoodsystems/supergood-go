@@ -16,32 +16,12 @@ import (
 	"net/url"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/supergoodsystems/supergood-go/internal/event"
 	"github.com/supergoodsystems/supergood-go/internal/redact"
 	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
 )
-
-// Service collates request logs and uploads them to the Supergood API
-// in batches.
-//
-// As request logs are batched locally, you must call [Service.Close]
-// before your program exits to upload any pending logs.
-type Service struct {
-	// DefaultClient is a wrapped version of http.DefaultClient
-	// If you'd like to use supergood on all requests, set
-	// http.DefaultClient = sg.DefaultClient.
-
-	DefaultClient *http.Client
-
-	close   chan chan error
-	mutex   sync.Mutex
-	options *Options
-	queue   map[string]*event.Event
-	rc      remoteconfig.RemoteConfig
-}
 
 // New creates a new supergood service.
 // An error is returned only if the configuration is invalid.
@@ -155,6 +135,7 @@ func (sg *Service) flush(force bool) error {
 	defer sg.mutex.Unlock()
 
 	toSend := []*event.Event{}
+	queueLen := len(sg.queue)
 	for key, entry := range sg.queue {
 		if entry.Response == nil && !force {
 			continue
@@ -172,6 +153,10 @@ func (sg *Service) flush(force bool) error {
 		sg.handleError(err)
 	}
 
+	sg.logTelemtry(telemetry{
+		ServiceName:   sg.options.ServiceName,
+		CacheKeyCount: queueLen,
+	})
 	return sg.post("/events", toSend)
 }
 
@@ -182,17 +167,6 @@ func (sg *Service) reset() map[string]*event.Event {
 	entries := sg.queue
 	sg.queue = map[string]*event.Event{}
 	return entries
-}
-
-type errorReport struct {
-	Error   string         `json:"error"`
-	Message string         `json:"message"`
-	Payload packageVersion `json:"payload"`
-}
-
-type packageVersion struct {
-	Name    string `json:"packageName"`
-	Version string `json:"packageVersion"`
 }
 
 func getVersion() packageVersion {
@@ -217,6 +191,10 @@ func (sg *Service) logError(e error) error {
 		Message: e.Error(),
 		Payload: getVersion(),
 	})
+}
+
+func (sg *Service) logTelemtry(t telemetry) error {
+	return sg.post("/telemetry", t)
 }
 
 func (sg *Service) post(path string, body any) error {

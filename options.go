@@ -67,6 +67,10 @@ type Options struct {
 	// the remote config which is used to ignore / accept traffic from client endpoints
 	// as well as mask sensitive keys
 	RemoteConfigFetchInterval time.Duration
+
+	// ServiceName is an optional parameter that can be passed that helps differentiate
+	// services that use the same supergood api-key
+	ServiceName string
 }
 
 func (o *Options) parse() (*Options, error) {
