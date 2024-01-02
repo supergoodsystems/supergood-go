@@ -81,6 +81,11 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
+		if r.URL.Path == "/telemetry" {
+			rw.Write([]byte(`{"message":"Success"}`))
+			return
+		}
+
 		if twiceBroken && (r.URL.Path != "/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
@@ -384,7 +389,7 @@ func Test_Supergood(t *testing.T) {
 		// First to fetch the remote config
 		// One for the initial mock request
 		// and the last 2 are the telemetry call and event logging to the supergood backend
-		require.Equal(t, count, 4)
+		require.Equal(t, 4, count)
 		close(mockServerChannel)
 
 		require.Len(t, events, 1)
