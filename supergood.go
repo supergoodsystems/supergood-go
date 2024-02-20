@@ -40,13 +40,16 @@ func New(o *Options) (*Service, error) {
 	if sg.options.HTTPClient != nil {
 		client = sg.options.HTTPClient
 	}
-	sg.DefaultClient = sg.Wrap(client)
+
+	if !sg.options.DisableDefaultWrappedClient {
+		sg.DefaultClient = sg.Wrap(client)
+	}
 
 	// Comment: I'd like to have passed sg.options to a New() func
 	// however that requires that the remote config package have a dependency on supergood.Options
 	// which causes a circular dependency. I'd like to avoid moving supergood.Options to a separate package
 	// since it's nicer for end users to initialize the supergood client with a single supergood import
-	// e.g. supergood.New(&supergood.Options{}) instead of supergood.New(&supergoodOptions.Options{})
+	// e.g. supergood.New(&supergood.Options{}) instead of supergood.New(&supergoodoptions.Options{})
 	sg.rc = remoteconfig.New(remoteconfig.RemoteConfigOpts{
 		BaseURL:                 sg.options.BaseURL,
 		ClientID:                sg.options.ClientID,

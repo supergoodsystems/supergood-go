@@ -71,6 +71,11 @@ type Options struct {
 	// ServiceName is an optional parameter that can be passed that helps differentiate
 	// services that use the same supergood api-key
 	ServiceName string
+
+	// DisableDefaultWrappedClient prevents the go client from wrapping an HTTP client by default.
+	// This functionality will be used by other packages that might want to leverage some of this go packages functionality
+	// without having to intercept traffic via Roundtripper
+	DisableDefaultWrappedClient bool
 }
 
 func (o *Options) parse() (*Options, error) {

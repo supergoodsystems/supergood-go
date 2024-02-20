@@ -29,6 +29,7 @@ func TestOptions_defaults(t *testing.T) {
 	require.NotNil(t, o.OnError)
 	require.Equal(t, o.FlushInterval, 1*time.Second)
 	require.Equal(t, o.HTTPClient, http.DefaultClient)
+	require.False(t, o.DisableDefaultWrappedClient)
 }
 
 func TestOptions_overrides(t *testing.T) {
@@ -36,17 +37,18 @@ func TestOptions_overrides(t *testing.T) {
 	client := &http.Client{}
 
 	o, err := (&Options{
-		ClientID:                "test_client_id2",
-		ClientSecret:            "test_client_secret2",
-		BaseURL:                 "https://api.superbad.ai",
-		RedactResponseBodyKeys:  map[string][]string{"example.com": {"responsebody.path.to.key"}},
-		RedactRequestBodyKeys:   map[string][]string{"example.com": {"requestbody.path.to.key"}},
-		RedactRequestHeaderKeys: map[string][]string{"example.com": {"header-key"}},
-		AllowedDomains:          []string{"example.com"},
-		SelectRequests:          func(r *http.Request) bool { return false },
-		OnError:                 func(e error) { onErr = e },
-		FlushInterval:           5 * time.Second,
-		HTTPClient:              client,
+		ClientID:                    "test_client_id2",
+		ClientSecret:                "test_client_secret2",
+		BaseURL:                     "https://api.superbad.ai",
+		RedactResponseBodyKeys:      map[string][]string{"example.com": {"responsebody.path.to.key"}},
+		RedactRequestBodyKeys:       map[string][]string{"example.com": {"requestbody.path.to.key"}},
+		RedactRequestHeaderKeys:     map[string][]string{"example.com": {"header-key"}},
+		AllowedDomains:              []string{"example.com"},
+		SelectRequests:              func(r *http.Request) bool { return false },
+		OnError:                     func(e error) { onErr = e },
+		FlushInterval:               5 * time.Second,
+		HTTPClient:                  client,
+		DisableDefaultWrappedClient: true,
 	}).parse()
 	require.NoError(t, err)
 
@@ -62,6 +64,7 @@ func TestOptions_overrides(t *testing.T) {
 	require.Equal(t, "test error", onErr.Error())
 	require.Equal(t, o.FlushInterval, 5*time.Second)
 	require.Equal(t, o.HTTPClient, client)
+	require.True(t, o.DisableDefaultWrappedClient)
 }
 
 func TestOptions_errors(t *testing.T) {
