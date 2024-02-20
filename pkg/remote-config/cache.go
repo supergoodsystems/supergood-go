@@ -35,6 +35,7 @@ func (rc *RemoteConfig) IsInitialized() bool {
 // to redact sensitive keys
 func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 	for _, config := range remoteConfigArray {
+		fmt.Printf("%+v", config)
 		cacheVal := map[string]EndpointCacheVal{}
 		for _, endpoint := range config.Endpoints {
 			if endpoint.MatchingRegex.Regex == "" || endpoint.MatchingRegex.Location == "" {

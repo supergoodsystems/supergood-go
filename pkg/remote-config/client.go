@@ -20,9 +20,13 @@ func (rc *RemoteConfig) fetch() ([]RemoteConfigResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(rc.clientID+":"+rc.clientSecret)))
 	req.Header.Set("Content-Type", "application/json")
+	fmt.Println("HERE0")
+	fmt.Printf("%+v", req)
 	resp, err := rc.client.Do(req)
+	fmt.Println("HERE")
 	if err != nil {
 		return nil, err
 	}

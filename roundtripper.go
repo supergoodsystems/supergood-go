@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	uuid "github.com/satori/go.uuid"
-	"github.com/supergoodsystems/supergood-go/internal/event"
+	"github.com/supergoodsystems/supergood-go/pkg/event"
 )
 
 type roundTripper struct {

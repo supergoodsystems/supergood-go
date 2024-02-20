@@ -5,8 +5,8 @@ import (
 	"reflect"
 
 	domainutils "github.com/supergoodsystems/supergood-go/internal/domain-utils"
-	"github.com/supergoodsystems/supergood-go/internal/event"
-	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
+	"github.com/supergoodsystems/supergood-go/pkg/event"
+	remoteconfig "github.com/supergoodsystems/supergood-go/pkg/remote-config"
 )
 
 // Redact removes the sensitive keys provided in remote config cache

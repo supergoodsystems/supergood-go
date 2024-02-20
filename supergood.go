@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/supergoodsystems/supergood-go/internal/event"
-	"github.com/supergoodsystems/supergood-go/internal/redact"
-	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
+	"github.com/supergoodsystems/supergood-go/pkg/event"
+	"github.com/supergoodsystems/supergood-go/pkg/redact"
+	remoteconfig "github.com/supergoodsystems/supergood-go/pkg/remote-config"
 )
 
 // New creates a new supergood service.
