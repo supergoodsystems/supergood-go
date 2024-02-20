@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/supergoodsystems/supergood-go/internal/event"
-	remoteconfig "github.com/supergoodsystems/supergood-go/internal/remote-config"
+	"github.com/supergoodsystems/supergood-go/pkg/event"
+	remoteconfig "github.com/supergoodsystems/supergood-go/pkg/remote-config"
 )
 
 // Service collates request logs and uploads them to the Supergood API
