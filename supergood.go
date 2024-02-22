@@ -50,7 +50,7 @@ func New(o *Options) (*Service, error) {
 	// which causes a circular dependency. I'd like to avoid moving supergood.Options to a separate package
 	// since it's nicer for end users to initialize the supergood client with a single supergood import
 	// e.g. supergood.New(&supergood.Options{}) instead of supergood.New(&supergoodoptions.Options{})
-	sg.rc = remoteconfig.New(remoteconfig.RemoteConfigOpts{
+	sg.RemoteConfig = remoteconfig.New(remoteconfig.RemoteConfigOpts{
 		BaseURL:                 sg.options.BaseURL,
 		ClientID:                sg.options.ClientID,
 		ClientSecret:            sg.options.ClientSecret,
@@ -63,13 +63,13 @@ func New(o *Options) (*Service, error) {
 	})
 
 	sg.reset()
-	err = sg.rc.Init()
+	err = sg.RemoteConfig.Init()
 	if err != nil {
 		sg.handleError(err)
 	}
 
 	go sg.loop()
-	go sg.rc.Refresh()
+	go sg.RemoteConfig.Refresh()
 	return sg, nil
 }
 
@@ -94,17 +94,17 @@ func (sg *Service) Close() error {
 	ch := make(chan error)
 	sg.close <- ch
 	close(sg.close)
-	sg.rc.Close()
+	sg.RemoteConfig.Close()
 	return <-ch
 }
 
-func (sg *Service) logRequest(id string, req *event.Request, endpointId string) {
+func (sg *Service) LogRequest(id string, req *event.Request, endpointId string) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 	sg.queue[id] = &event.Event{Request: req, MetaData: event.MetaData{EndpointId: endpointId}}
 }
 
-func (sg *Service) logResponse(id string, resp *event.Response) {
+func (sg *Service) LogResponse(id string, resp *event.Response) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 	if entry, ok := sg.queue[id]; ok {
@@ -151,7 +151,7 @@ func (sg *Service) flush(force bool) error {
 		return nil
 	}
 
-	errs := redact.Redact(toSend, &sg.rc)
+	errs := redact.Redact(toSend, &sg.RemoteConfig)
 	for _, err := range errs {
 		sg.handleError(err)
 	}

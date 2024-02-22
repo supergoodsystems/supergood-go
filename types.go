@@ -20,11 +20,11 @@ type Service struct {
 
 	DefaultClient *http.Client
 
-	close   chan chan error
-	mutex   sync.Mutex
-	options *Options
-	queue   map[string]*event.Event
-	rc      remoteconfig.RemoteConfig
+	close        chan chan error
+	mutex        sync.Mutex
+	options      *Options
+	queue        map[string]*event.Event
+	RemoteConfig remoteconfig.RemoteConfig
 }
 
 type errorReport struct {
