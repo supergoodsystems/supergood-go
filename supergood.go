@@ -113,6 +113,10 @@ func (sg *Service) LogResponse(id string, resp *event.Response) {
 	}
 }
 
+func (sg *Service) GetSelectedRequests(req *http.Request) bool {
+	return sg.options.SelectRequests(req)
+}
+
 func (sg *Service) loop() {
 	var closed chan error
 	for {
