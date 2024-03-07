@@ -76,6 +76,11 @@ type Options struct {
 	// This functionality will be used by other packages that might want to leverage some of this go packages functionality
 	// without having to intercept traffic via Roundtripper
 	DisableDefaultWrappedClient bool
+
+	// TelemetryURL is where to find the supergood telemetry API
+	// (defaults to the SUPERGOOD_TELEMETRY_URL environment variable,
+	// or "https://telemetry.supergood.ai" if not set)
+	TelemetryURL string
 }
 
 func (o *Options) parse() (*Options, error) {
@@ -189,6 +194,13 @@ func (o *Options) parse() (*Options, error) {
 	}
 	if o.RemoteConfigFetchInterval < time.Millisecond {
 		return nil, fmt.Errorf("supergood: RemoteConfigFetchInterval too small, did you forget to multiply by time.Second?")
+	}
+
+	if o.TelemetryURL == "" {
+		o.TelemetryURL = os.Getenv("SUPERGOOD_TELEMETRY_URL")
+	}
+	if o.TelemetryURL == "" {
+		o.TelemetryURL = "https://telemetry.supergood.ai"
 	}
 
 	return o, nil

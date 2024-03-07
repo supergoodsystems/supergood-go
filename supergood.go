@@ -164,7 +164,7 @@ func (sg *Service) flush(force bool) error {
 		ServiceName:   sg.options.ServiceName,
 		CacheKeyCount: queueLen,
 	})
-	return sg.post("/events", toSend)
+	return sg.post(sg.options.BaseURL, "/events", toSend)
 }
 
 func (sg *Service) reset() map[string]*event.Event {
@@ -193,7 +193,7 @@ func (sg *Service) logError(e error) error {
 		return nil
 	}
 
-	return sg.post("/errors", &errorReport{
+	return sg.post(sg.options.TelemetryURL, "/errors", &errorReport{
 		Error:   e.Error(),
 		Message: e.Error(),
 		Payload: getVersion(),
@@ -201,14 +201,14 @@ func (sg *Service) logError(e error) error {
 }
 
 func (sg *Service) logTelemtry(t telemetry) {
-	err := sg.post("/telemetry", t)
+	err := sg.post(sg.options.TelemetryURL, "/telemetry", t)
 	if err != nil {
 		sg.handleError(err)
 	}
 }
 
-func (sg *Service) post(path string, body any) error {
-	url, err := url.JoinPath(sg.options.BaseURL, path)
+func (sg *Service) post(host string, path string, body any) error {
+	url, err := url.JoinPath(host, path)
 	if err != nil { // should not happen as checked in New()
 		return err
 	}
@@ -233,7 +233,7 @@ func (sg *Service) post(path string, body any) error {
 	if resp.StatusCode == 401 {
 		return fmt.Errorf("supergood: invalid ClientID or ClientSecret")
 	} else if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("supergood: got HTTP %v posting to %v", resp.Status, path)
+		return fmt.Errorf("supergood: got HTTP %v posting to %v/%v", resp.Status, host, path)
 	}
 
 	return nil
