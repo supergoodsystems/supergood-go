@@ -233,7 +233,7 @@ func (sg *Service) post(host string, path string, body any) error {
 	if resp.StatusCode == 401 {
 		return fmt.Errorf("supergood: invalid ClientID or ClientSecret")
 	} else if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("supergood: got HTTP %v posting to %v/%v", resp.Status, host, path)
+		return fmt.Errorf("supergood: got HTTP %v posting to %v", resp.Status, path)
 	}
 
 	return nil

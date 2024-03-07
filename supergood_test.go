@@ -81,24 +81,9 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if r.URL.Path == "/telemetry" {
-			rw.Write([]byte(`{"message":"Success"}`))
-			return
-		}
-
 		if twiceBroken && (r.URL.Path != "/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
-			return
-		}
-
-		if r.URL.Path == "/errors" && r.Method == "POST" {
-			newErr := &errorReport{}
-			err := json.NewDecoder(r.Body).Decode(&newErr)
-			require.NoError(t, err)
-			errorReports = append(errorReports, newErr)
-
-			rw.Write([]byte(`{"message":"Success"}`))
 			return
 		}
 
@@ -155,6 +140,43 @@ func mockApiServer(t *testing.T) string {
 	})
 }
 
+// mock telemetry.supergood.ai for testing
+func mockTelemetryServer(t *testing.T) string {
+
+	return mockServer(t, func(rw http.ResponseWriter, r *http.Request) {
+
+		if r.Header.Get("Authorization") != "Basic "+base64.StdEncoding.EncodeToString([]byte(clientID+":"+clientSecret)) {
+			rw.WriteHeader(http.StatusUnauthorized)
+			rw.Write([]byte(`{"error":"Unauthorized"}`))
+			return
+		}
+
+		if r.Header.Get("Content-Type") != "application/json" {
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Write([]byte(`{"status":"BadRequest"}`))
+			return
+		}
+
+		if r.URL.Path == "/telemetry" {
+			rw.Write([]byte(`{"message":"Success"}`))
+			return
+		}
+
+		if r.URL.Path == "/errors" {
+			newErr := &errorReport{}
+			err := json.NewDecoder(r.Body).Decode(&newErr)
+			require.NoError(t, err)
+			errorReports = append(errorReports, newErr)
+
+			rw.Write([]byte(`{"message":"Success"}`))
+			return
+		}
+
+		rw.WriteHeader(http.StatusNotFound)
+		rw.Write([]byte(`{"status":"NotFound"}`))
+	})
+}
+
 // mock various behaviours for testing
 func testServer(t *testing.T) string {
 	return mockServer(t, func(rw http.ResponseWriter, r *http.Request) {
@@ -182,10 +204,13 @@ func testServer(t *testing.T) string {
 
 func Test_Supergood(t *testing.T) {
 	baseURL := mockApiServer(t)
+	telemetryURL := mockTelemetryServer(t)
 	host := testServer(t)
+
 	t.Setenv("SUPERGOOD_CLIENT_ID", clientID)
 	t.Setenv("SUPERGOOD_CLIENT_SECRET", clientSecret)
 	t.Setenv("SUPERGOOD_BASE_URL", baseURL)
+	t.Setenv("SUPERGOOD_TELEMETRY_URL", telemetryURL)
 
 	echoBody := func(t *testing.T, o *Options, body []byte) {
 		reset()
