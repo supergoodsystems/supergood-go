@@ -70,14 +70,14 @@ func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, err
 			if !ok {
 				v.SetMapIndex(e, reflect.Zero(mapVal.Type()))
 				results = append(results, prepareOutput(mapVal, path)...)
-				continue
+			} else {
+				result, err := redactAllHelper(mapVal, path)
+				if err != nil {
+					return results, err
+				}
+				results = append(results, result...)
 			}
 
-			result, err := redactAllHelper(mapVal, path)
-			if err != nil {
-				return results, err
-			}
-			results = append(results, result...)
 		}
 		return results, nil
 
