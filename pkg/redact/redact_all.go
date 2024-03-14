@@ -102,9 +102,9 @@ func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, err
 
 func shouldTraverse(v reflect.Value) bool {
 	switch v.Kind() {
-	// NOTE: reason for the below is to successfully redact arrays and slices
+	// NOTE: reason for the below is to allow for successful redact arrays and slices.
 	// Arrays, slices with primitive values cannot be successfully nullified because
-	// we do not have
+	// the reflected value is not addressable
 	case reflect.Array, reflect.Slice:
 		if v.Len() == 0 {
 			return false
