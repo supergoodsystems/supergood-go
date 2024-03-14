@@ -36,10 +36,10 @@ func redactPathHelper(domain, url, originalPath string, pathParts []string, v re
 	} else {
 		switch v.Type().Kind() {
 		case reflect.Ptr, reflect.Interface:
-			return redactEventHelper(domain, url, originalPath, pathParts, v.Elem(), createdPath)
+			return redactPathHelper(domain, url, originalPath, pathParts, v.Elem(), createdPath)
 
 		case reflect.Struct:
-			return redactEventHelper(domain, url, originalPath, pathParts[1:], v.FieldByName(pathParts[0]), formatFieldPathPart(createdPath, pathParts[0]))
+			return redactPathHelper(domain, url, originalPath, pathParts[1:], v.FieldByName(pathParts[0]), formatFieldPathPart(createdPath, pathParts[0]))
 
 		case reflect.Map:
 			// You can't mutate elements of a map, but as a special case if we just
@@ -70,7 +70,7 @@ func redactPathHelper(domain, url, originalPath string, pathParts []string, v re
 					},
 				}, nil
 			} else {
-				return redactEventHelper(domain, url, originalPath, pathParts[1:], mapVal, formatFieldPathPart(createdPath, pathParts[0]))
+				return redactPathHelper(domain, url, originalPath, pathParts[1:], mapVal, formatFieldPathPart(createdPath, pathParts[0]))
 			}
 
 		case reflect.Array, reflect.Slice:
@@ -81,7 +81,7 @@ func redactPathHelper(domain, url, originalPath string, pathParts []string, v re
 
 			results := []event.RedactedKeyMeta{}
 			for i := 0; i < v.Len(); i++ {
-				result, err := redactEventHelper(domain, url, originalPath, pathParts[1:], v.Index(i), formatArrayPathPart(createdPath, i))
+				result, err := redactPathHelper(domain, url, originalPath, pathParts[1:], v.Index(i), formatArrayPathPart(createdPath, i))
 				if err != nil {
 					return results, err
 				}
