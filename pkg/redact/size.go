@@ -23,6 +23,8 @@ func getSize(v reflect.Value) int {
 		for i := 0; i < v.NumField(); i++ {
 			size += getSize(v.Field(i))
 		}
+	default:
+		size += int(v.Type().Size())
 	}
 	return size
 }

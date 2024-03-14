@@ -5,15 +5,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/supergoodsystems/supergood-go/pkg/event"
 	remoteconfig "github.com/supergoodsystems/supergood-go/pkg/remote-config"
 )
 
-func Test_Redact(t *testing.T) {
+func Test_Redact_With_Path(t *testing.T) {
 
 	t.Run("Redact sensitive key from request body", func(t *testing.T) {
-		events := createEvents()
-		config := createRemoteConfig()
+		events := CreateEvents()
+		config := CreateRemoteConfig(false)
 		regex, _ := regexp.Compile("test-endpoint")
 		cacheVal := remoteconfig.EndpointCacheVal{
 			Regex:    *regex,
@@ -59,8 +58,8 @@ func Test_Redact(t *testing.T) {
 	})
 
 	t.Run("Redact sensitive key from response body", func(t *testing.T) {
-		events := createEvents()
-		config := createRemoteConfig()
+		events := CreateEvents()
+		config := CreateRemoteConfig(false)
 		regex, _ := regexp.Compile("test-endpoint")
 		cacheVal := remoteconfig.EndpointCacheVal{
 			Regex:    *regex,
@@ -95,8 +94,8 @@ func Test_Redact(t *testing.T) {
 	})
 
 	t.Run("Redact sensitive key from request headers", func(t *testing.T) {
-		events := createEvents()
-		config := createRemoteConfig()
+		events := CreateEvents()
+		config := CreateRemoteConfig(false)
 		regex, _ := regexp.Compile("test-endpoint")
 		cacheVal := remoteconfig.EndpointCacheVal{
 			Regex:         *regex,
@@ -111,8 +110,8 @@ func Test_Redact(t *testing.T) {
 	})
 
 	t.Run("Handles invalid sensitive keys gracefully", func(t *testing.T) {
-		events := createEvents()
-		config := createRemoteConfig()
+		events := CreateEvents()
+		config := CreateRemoteConfig(false)
 		regex, _ := regexp.Compile("test-endpoint")
 		cacheVal := remoteconfig.EndpointCacheVal{
 			Regex:         *regex,
@@ -126,8 +125,8 @@ func Test_Redact(t *testing.T) {
 	})
 
 	t.Run("Does not redact in case no matching domain in cache", func(t *testing.T) {
-		events := createEvents()
-		config := createRemoteConfig()
+		events := CreateEvents()
+		config := CreateRemoteConfig(false)
 		regex, _ := regexp.Compile("test-endpoint")
 		cacheVal := remoteconfig.EndpointCacheVal{
 			Regex:         *regex,
@@ -142,8 +141,8 @@ func Test_Redact(t *testing.T) {
 	})
 
 	t.Run("Does not redact in case no matching endpoint in cache", func(t *testing.T) {
-		events := createEvents()
-		config := createRemoteConfig()
+		events := CreateEvents()
+		config := CreateRemoteConfig(false)
 		regex, _ := regexp.Compile("test-endpoint")
 		cacheVal := remoteconfig.EndpointCacheVal{
 			Regex:         *regex,
@@ -156,58 +155,4 @@ func Test_Redact(t *testing.T) {
 		require.Len(t, errors, 0)
 		require.Equal(t, "value", events[0].Request.Headers["key"])
 	})
-}
-
-func createRemoteConfig() *remoteconfig.RemoteConfig {
-	config := remoteconfig.New(remoteconfig.RemoteConfigOpts{
-		HandleError: func(error) {},
-	})
-	return &config
-}
-
-func createEvents() []*event.Event {
-	events := []*event.Event{}
-	event := &event.Event{
-		Request: &event.Request{
-			URL:  "test.com/test-endpoint",
-			Path: "/test-endpoint",
-			Body: map[string]any{
-				"key":      "value",
-				"keyInt":   1,
-				"keyFloat": 1.1,
-				"nested": map[string]any{
-					"key": "value",
-				},
-				"array": []string{"item1", "item2"},
-				"arrayOfObj": []map[string]any{
-					{
-						"field1": "value1",
-						"field2": "value2",
-					},
-					{
-						"field1": "value3",
-						"field2": "value4",
-					},
-				},
-			},
-			Headers: map[string]string{
-				"key": "value",
-			},
-		},
-		Response: &event.Response{
-			Body: map[string]any{
-				"key":      "value",
-				"keyInt":   1,
-				"keyFloat": 1.1,
-				"nested": map[string]any{
-					"key": "value",
-				},
-			},
-		},
-		MetaData: event.MetaData{
-			EndpointId: "endpointId",
-		},
-	}
-	events = append(events, event)
-	return events
 }

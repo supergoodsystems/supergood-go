@@ -14,6 +14,7 @@ type RemoteConfigOpts struct {
 	Client                  *http.Client
 	FetchInterval           time.Duration
 	HandleError             func(error)
+	RedactAll               bool
 	RedactRequestBodyKeys   map[string][]string
 	RedactResponseBodyKeys  map[string][]string
 	RedactRequestHeaderKeys map[string][]string
@@ -30,6 +31,7 @@ type RemoteConfig struct {
 	initialized             bool
 	handleError             func(error)
 	mutex                   sync.RWMutex
+	redactAll               bool
 	redactRequestBodyKeys   map[string][]string
 	redactResponseBodyKeys  map[string][]string
 	redactRequestHeaderKeys map[string][]string
