@@ -22,6 +22,10 @@ type Options struct {
 	// or "https://api.supergood.ai" if not set)
 	BaseURL string
 
+	// ForceRedactAll defaults to false. When enabled, the values within the request / response bodies are redacted
+	// but keys are maintained
+	ForceRedactAll bool
+
 	// RedactRequestBodyKeys is a map of top level domains to a list of keys within
 	// the request body representing object paths to be redacted.
 	// map[string][]string {"plaid.com": []string{"path.to.redacted.[].field"}}

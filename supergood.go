@@ -57,6 +57,7 @@ func New(o *Options) (*Service, error) {
 		Client:                  sg.options.HTTPClient,
 		FetchInterval:           sg.options.RemoteConfigFetchInterval,
 		HandleError:             sg.options.OnError,
+		RedactAll:               sg.options.ForceRedactAll,
 		RedactRequestBodyKeys:   sg.options.RedactRequestBodyKeys,
 		RedactResponseBodyKeys:  sg.options.RedactResponseBodyKeys,
 		RedactRequestHeaderKeys: sg.options.RedactRequestHeaderKeys,

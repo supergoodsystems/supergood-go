@@ -16,6 +16,7 @@ func New(opts RemoteConfigOpts) RemoteConfig {
 		fetchInterval:           opts.FetchInterval,
 		initialized:             false,
 		handleError:             opts.HandleError,
+		redactAll:               opts.RedactAll,
 		redactRequestBodyKeys:   opts.RedactRequestBodyKeys,
 		redactResponseBodyKeys:  opts.RedactResponseBodyKeys,
 		redactRequestHeaderKeys: opts.RedactRequestHeaderKeys,
