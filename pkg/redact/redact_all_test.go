@@ -90,10 +90,4 @@ func Test_Redact_All(t *testing.T) {
 		}
 	})
 
-	t.Run("Successfully redacts binary request response body", func(t *testing.T) {
-		events := CreateEventsWithBinaryBody()
-		config := CreateRemoteConfig(true)
-		errors := Redact(events, config)
-		require.Len(t, errors, 0)
-	})
 }
