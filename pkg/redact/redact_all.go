@@ -50,6 +50,9 @@ func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, err
 }
 
 func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, error) {
+	if !v.IsValid() {
+		return prepareNilOutput(path), nil
+	}
 	switch v.Type().Kind() {
 	case reflect.Ptr, reflect.Interface:
 		return redactAllHelper(v.Elem(), path)
