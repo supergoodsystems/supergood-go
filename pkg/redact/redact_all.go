@@ -22,25 +22,25 @@ var shouldTraverseKind = map[reflect.Kind]struct{}{
 
 func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, error) {
 	meta := []event.RedactedKeyMeta{}
-	redactRequestBodyMeta, err := redactAllHelper(reflect.ValueOf(e.Request.Body), shared.RequestBodyStr)
+	redactRequestBodyMeta, err := redactAllRequestBody(e.Request, shared.RequestBodyStr)
 	if err != nil {
 		return []event.RedactedKeyMeta{}, err
 	}
 	meta = append(meta, redactRequestBodyMeta...)
 
-	redactRequestHeaderMeta, err := redactAllHelper(reflect.ValueOf(e.Request.Headers), shared.RequestHeadersStr)
+	redactRequestHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(e.Request.Headers), shared.RequestHeadersStr)
 	if err != nil {
 		return []event.RedactedKeyMeta{}, err
 	}
 	meta = append(meta, redactRequestHeaderMeta...)
 
-	redactResponseBodyMeta, err := redactAllHelper(reflect.ValueOf(e.Response.Body), shared.ResponseBodyStr)
+	redactResponseBodyMeta, err := redactAllResponseBody(e.Response, shared.ResponseBodyStr)
 	if err != nil {
 		return []event.RedactedKeyMeta{}, err
 	}
 	meta = append(meta, redactResponseBodyMeta...)
 
-	redactResponseHeaderMeta, err := redactAllHelper(reflect.ValueOf(e.Response.Headers), shared.ResponseHeadersStr)
+	redactResponseHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(e.Response.Headers), shared.ResponseHeadersStr)
 	if err != nil {
 		return []event.RedactedKeyMeta{}, err
 	}
@@ -49,13 +49,39 @@ func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, err
 	return meta, nil
 }
 
-func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, error) {
+func redactAllResponseBody(response *event.Response, path string) ([]event.RedactedKeyMeta, error) {
+	v := reflect.ValueOf(response.Body)
+	if !v.IsValid() {
+		return prepareNilOutput(path), nil
+	}
+	if v.Type().Kind() == reflect.String {
+		result := prepareOutput(v, path)
+		response.Body = ""
+		return result, nil
+	}
+	return redactAllHelperRecurse(reflect.ValueOf(response.Body), path)
+}
+
+func redactAllRequestBody(request *event.Request, path string) ([]event.RedactedKeyMeta, error) {
+	v := reflect.ValueOf(request.Body)
+	if !v.IsValid() {
+		return prepareNilOutput(path), nil
+	}
+	if v.Type().Kind() == reflect.String {
+		result := prepareOutput(v, path)
+		request.Body = ""
+		return result, nil
+	}
+	return redactAllHelperRecurse(reflect.ValueOf(request.Body), path)
+}
+
+func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMeta, error) {
 	if !v.IsValid() {
 		return prepareNilOutput(path), nil
 	}
 	switch v.Type().Kind() {
 	case reflect.Ptr, reflect.Interface:
-		return redactAllHelper(v.Elem(), path)
+		return redactAllHelperRecurse(v.Elem(), path)
 
 	case reflect.Map:
 		results := []event.RedactedKeyMeta{}
@@ -78,7 +104,7 @@ func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, err
 				v.SetMapIndex(e, reflect.Zero(mapVal.Type()))
 				results = append(results, prepareOutput(mapVal, path)...)
 			} else {
-				result, err := redactAllHelper(mapVal, path)
+				result, err := redactAllHelperRecurse(mapVal, path)
 				if err != nil {
 					return results, err
 				}
@@ -91,7 +117,7 @@ func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, err
 	case reflect.Array, reflect.Slice:
 		results := []event.RedactedKeyMeta{}
 		for i := 0; i < v.Len(); i++ {
-			result, err := redactAllHelper(v.Index(i), path+"["+strconv.Itoa(i)+"]")
+			result, err := redactAllHelperRecurse(v.Index(i), path+"["+strconv.Itoa(i)+"]")
 			if err != nil {
 				return results, err
 			}
