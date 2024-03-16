@@ -58,14 +58,18 @@ func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, err
 		results := []event.RedactedKeyMeta{}
 		for _, e := range v.MapKeys() {
 			mapVal := v.MapIndex(e)
+			path := path + "." + e.String()
 			if !mapVal.IsValid() {
-				return nil, fmt.Errorf("unable to find key at sensitive key for path: %s", path)
+				return prepareNilOutput(path), nil
 			}
 			if mapVal.Kind() == reflect.Interface || mapVal.Kind() == reflect.Pointer {
 				mapVal = mapVal.Elem()
 			}
+			// checl again after returning the underlying value
+			if !mapVal.IsValid() {
+				return prepareNilOutput(path), nil
+			}
 
-			path := path + "." + e.String()
 			ok := shouldTraverse(mapVal)
 			if !ok {
 				v.SetMapIndex(e, reflect.Zero(mapVal.Type()))
@@ -102,7 +106,7 @@ func redactAllHelper(v reflect.Value, path string) ([]event.RedactedKeyMeta, err
 
 func shouldTraverse(v reflect.Value) bool {
 	switch v.Kind() {
-	// NOTE: reason for the below is to allow for successful redact arrays and slices.
+	// NOTE: below is required to redact arrays and slices.
 	// Arrays, slices with primitive values cannot be successfully nullified because
 	// the reflected value is not addressable
 	case reflect.Array, reflect.Slice:
@@ -121,6 +125,16 @@ func shouldTraverse(v reflect.Value) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func prepareNilOutput(path string) []event.RedactedKeyMeta {
+	return []event.RedactedKeyMeta{
+		{
+			KeyPath: path,
+			Length:  0,
+			Type:    "invalid",
+		},
 	}
 }
 
