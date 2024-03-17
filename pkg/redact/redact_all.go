@@ -91,9 +91,10 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 		return redactAllHelperRecurse(v.Elem(), path)
 
 	case reflect.Struct:
+		// NOTE: duplicate body should never return a struct. It will create a map[interface]interface{} instead
 		results := []event.RedactedKeyMeta{}
 		for i := 0; i < v.NumField(); i++ {
-			result, err := redactAllHelperRecurse(v.Field(i), v.Field(i).Kind().String())
+			result, err := redactAllHelperRecurse(v.Field(i), v.Field(i).Kind().String()) // <- not sure yet how to grab the name of the key using reflection
 			if err != nil {
 				return results, err
 			}
@@ -169,9 +170,9 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 
 func shouldTraverse(v reflect.Value) bool {
 	switch v.Kind() {
-	// NOTE: below is required to redact arrays and slices.
-	// Arrays, slices with primitive values cannot be successfully nullified because
-	// the reflected value is not addressable
+	// NOTE: below is required to redact arrays, slices, and maps successfully.
+	// if you recurse into the elements of an array, slice or map with primitive values, they are not settable
+	// therefore, you'll need to know whether to redact at a layer above
 	case reflect.Array, reflect.Slice:
 		if v.Len() == 0 {
 			return false
