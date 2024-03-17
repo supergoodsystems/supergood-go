@@ -42,12 +42,16 @@ func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, []e
 	return meta, errs
 }
 
+// NOTE: duplicate body will attempt to cast to map[string]interface{} in the case it cannot
+// it will cast the response into a string. In the case the body is returned as a string, the
+// reflected value is not settable - and is why this check is in place below
 func redactAllResponseBody(response *event.Response, path string) ([]event.RedactedKeyMeta, []error) {
 	errs := []error{}
 	result := []event.RedactedKeyMeta{}
 	if response.Body == nil {
 		return result, errs
 	}
+
 	v := reflect.ValueOf(response.Body)
 	if !v.IsValid() {
 		errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
@@ -61,6 +65,9 @@ func redactAllResponseBody(response *event.Response, path string) ([]event.Redac
 	return redactAllHelperRecurse(v, path)
 }
 
+// NOTE: duplicate body will attempt to cast to map[string]interface{} in the case it cannot
+// it will cast the request into a string. In the case the body is returned as a string, the
+// reflected value is not settable - and is why this check is in place below
 func redactAllRequestBody(request *event.Request, path string) ([]event.RedactedKeyMeta, []error) {
 	errs := []error{}
 	result := []event.RedactedKeyMeta{}
