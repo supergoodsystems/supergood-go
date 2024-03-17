@@ -16,9 +16,9 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
 		if forceRedact {
-			meta, err := redactAll(domain, e.Request.URL, e)
-			if err != nil {
-				errs = append(errs, err)
+			meta, redactErrs := redactAll(domain, e.Request.URL, e)
+			if len(redactErrs) != 0 {
+				errs = append(errs, redactErrs...)
 				continue
 			}
 			e.MetaData.SensitiveKeys = append(e.MetaData.SensitiveKeys, meta...)

@@ -158,7 +158,9 @@ func (sg *Service) flush(force bool) error {
 
 	errs := redact.Redact(toSend, &sg.RemoteConfig)
 	for _, err := range errs {
-		sg.handleError(err)
+		if err2 := sg.logError(err); err2 != nil {
+			sg.options.OnError(err2)
+		}
 	}
 
 	sg.logTelemtry(telemetry{

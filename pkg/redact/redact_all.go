@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/pkg/errors"
 	"github.com/supergoodsystems/supergood-go/internal/shared"
 	"github.com/supergoodsystems/supergood-go/pkg/event"
 )
@@ -20,38 +19,38 @@ var shouldTraverseKind = map[reflect.Kind]struct{}{
 	reflect.UnsafePointer: {},
 }
 
-func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, error) {
+func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, []error) {
 	meta := []event.RedactedKeyMeta{}
-	redactRequestHeaderMeta, errRequestHeaders := redactAllHelperRecurse(reflect.ValueOf(e.Request.Headers), shared.RequestHeadersStr)
-	redactRequestBodyMeta, errRequestBody := redactAllRequestBody(e.Request, shared.RequestBodyStr)
-	redactResponseHeaderMeta, errResponseHeaders := redactAllHelperRecurse(reflect.ValueOf(e.Response.Headers), shared.ResponseHeadersStr)
-	redactResponseBodyMeta, errResponseBody := redactAllResponseBody(e.Response, shared.ResponseBodyStr)
-	errors.Wrap
-
-	if err != nil {
-		return []event.RedactedKeyMeta{}, err
-	}
-	meta = append(meta, redactRequestBodyMeta...)
-
+	errs := []error{}
 	redactRequestHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(e.Request.Headers), shared.RequestHeadersStr)
 	if err != nil {
-		return []event.RedactedKeyMeta{}, err
+		errs = append(errs, err)
+	} else {
+		meta = append(meta, redactRequestHeaderMeta...)
 	}
-	meta = append(meta, redactRequestHeaderMeta...)
 
-	redactResponseBodyMeta, err := redactAllResponseBody(e.Response, shared.ResponseBodyStr)
+	redactRequestBodyMeta, err := redactAllRequestBody(e.Request, shared.RequestBodyStr)
 	if err != nil {
-		return []event.RedactedKeyMeta{}, err
+		errs = append(errs, err)
+	} else {
+		meta = append(meta, redactRequestBodyMeta...)
 	}
-	meta = append(meta, redactResponseBodyMeta...)
 
 	redactResponseHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(e.Response.Headers), shared.ResponseHeadersStr)
 	if err != nil {
-		return []event.RedactedKeyMeta{}, err
+		errs = append(errs, err)
+	} else {
+		meta = append(meta, redactResponseHeaderMeta...)
 	}
-	meta = append(meta, redactResponseHeaderMeta...)
 
-	return meta, nil
+	redactResponseBodyMeta, err := redactAllResponseBody(e.Response, shared.ResponseBodyStr)
+	if err != nil {
+		errs = append(errs, err)
+	} else {
+		meta = append(meta, redactResponseBodyMeta...)
+	}
+
+	return meta, errs
 }
 
 func redactAllResponseBody(response *event.Response, path string) ([]event.RedactedKeyMeta, error) {
