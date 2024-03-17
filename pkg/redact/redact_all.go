@@ -3,8 +3,8 @@ package redact
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 
+	"github.com/pkg/errors"
 	"github.com/supergoodsystems/supergood-go/internal/shared"
 	"github.com/supergoodsystems/supergood-go/pkg/event"
 )
@@ -22,7 +22,12 @@ var shouldTraverseKind = map[reflect.Kind]struct{}{
 
 func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, error) {
 	meta := []event.RedactedKeyMeta{}
-	redactRequestBodyMeta, err := redactAllRequestBody(e.Request, shared.RequestBodyStr)
+	redactRequestHeaderMeta, errRequestHeaders := redactAllHelperRecurse(reflect.ValueOf(e.Request.Headers), shared.RequestHeadersStr)
+	redactRequestBodyMeta, errRequestBody := redactAllRequestBody(e.Request, shared.RequestBodyStr)
+	redactResponseHeaderMeta, errResponseHeaders := redactAllHelperRecurse(reflect.ValueOf(e.Response.Headers), shared.ResponseHeadersStr)
+	redactResponseBodyMeta, errResponseBody := redactAllResponseBody(e.Response, shared.ResponseBodyStr)
+	errors.Wrap
+
 	if err != nil {
 		return []event.RedactedKeyMeta{}, err
 	}
@@ -52,7 +57,7 @@ func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, err
 func redactAllResponseBody(response *event.Response, path string) ([]event.RedactedKeyMeta, error) {
 	v := reflect.ValueOf(response.Body)
 	if !v.IsValid() {
-		return prepareNilOutput(path), nil
+		return prepareInvalidOutput(path), nil
 	}
 	if v.Type().Kind() == reflect.String {
 		result := prepareOutput(v, path)
@@ -65,7 +70,7 @@ func redactAllResponseBody(response *event.Response, path string) ([]event.Redac
 func redactAllRequestBody(request *event.Request, path string) ([]event.RedactedKeyMeta, error) {
 	v := reflect.ValueOf(request.Body)
 	if !v.IsValid() {
-		return prepareNilOutput(path), nil
+		return prepareInvalidOutput(path), nil
 	}
 	if v.Type().Kind() == reflect.String {
 		result := prepareOutput(v, path)
@@ -77,31 +82,45 @@ func redactAllRequestBody(request *event.Request, path string) ([]event.Redacted
 
 func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMeta, error) {
 	if !v.IsValid() {
-		return prepareNilOutput(path), nil
+		return []event.RedactedKeyMeta{}, nil
 	}
 	switch v.Type().Kind() {
 	case reflect.Ptr, reflect.Interface:
+		if v.IsNil() {
+			return []event.RedactedKeyMeta{}, nil
+		}
 		return redactAllHelperRecurse(v.Elem(), path)
 
-	case reflect.Map:
+	case reflect.Struct:
 		results := []event.RedactedKeyMeta{}
-		for _, e := range v.MapKeys() {
-			mapVal := v.MapIndex(e)
-			path := path + "." + e.String()
-			if !mapVal.IsValid() {
-				return prepareNilOutput(path), nil
+		for i := 0; i < v.NumField(); i++ {
+			result, err := redactAllHelperRecurse(v.Field(i), v.Field(i).Kind().String())
+			if err != nil {
+				return results, err
 			}
-			if mapVal.Kind() == reflect.Interface || mapVal.Kind() == reflect.Pointer {
-				mapVal = mapVal.Elem()
-			}
-			// checl again after returning the underlying value
+			results = append(results, result...)
+		}
+		return results, nil
+
+	case reflect.Map:
+		if v.IsNil() {
+			return []event.RedactedKeyMeta{}, nil
+		}
+
+		results := []event.RedactedKeyMeta{}
+		for _, key := range v.MapKeys() {
+			mapVal := v.MapIndex(key)
+			path := path + "." + key.String()
 			if !mapVal.IsValid() {
-				return prepareNilOutput(path), nil
+				return []event.RedactedKeyMeta{}, nil
 			}
 
 			ok := shouldTraverse(mapVal)
 			if !ok {
-				v.SetMapIndex(e, reflect.Zero(mapVal.Type()))
+				if mapVal.Type() == nil {
+					continue
+				}
+				v.SetMapIndex(key, reflect.Zero(mapVal.Type()))
 				results = append(results, prepareOutput(mapVal, path)...)
 			} else {
 				result, err := redactAllHelperRecurse(mapVal, path)
@@ -116,8 +135,22 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 
 	case reflect.Array, reflect.Slice:
 		results := []event.RedactedKeyMeta{}
+		if v.Len() == 0 || (v.Kind() == reflect.Slice && v.IsNil()) {
+			return results, nil
+		}
+
+		if ok := shouldTraverse(v.Index(0)); !ok {
+			if !v.CanSet() {
+				return results, nil
+			} else {
+				result := prepareOutput(v, path)
+				v.Set(reflect.Zero(v.Type()))
+				return result, nil
+			}
+		}
+
 		for i := 0; i < v.Len(); i++ {
-			result, err := redactAllHelperRecurse(v.Index(i), path+"["+strconv.Itoa(i)+"]")
+			result, err := redactAllHelperRecurse(v.Index(i), fmt.Sprintf("%s[%d]", path, i))
 			if err != nil {
 				return results, err
 			}
@@ -126,10 +159,12 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 		return results, nil
 
 	default:
-		// NOTE: We pass in directly to this func
-		// request.Body, response.Body, request.Headers, response.headers
-		// we can expect the form of these to be of map[string]any or a byte array
-		return nil, fmt.Errorf("unexpected event structure")
+		if !v.CanSet() {
+			return []event.RedactedKeyMeta{}, nil
+		}
+		result := prepareOutput(v, path)
+		v.Set(reflect.Zero(v.Type()))
+		return result, nil
 	}
 }
 
@@ -150,14 +185,17 @@ func shouldTraverse(v reflect.Value) bool {
 		_, ok := shouldTraverseKind[valAtIndex.Kind()]
 		return ok
 
-	case reflect.Uintptr, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Struct, reflect.UnsafePointer:
+	case reflect.Interface:
+		return shouldTraverse(v.Elem())
+
+	case reflect.Uintptr, reflect.Map, reflect.Pointer, reflect.Struct, reflect.UnsafePointer:
 		return true
 	default:
 		return false
 	}
 }
 
-func prepareNilOutput(path string) []event.RedactedKeyMeta {
+func prepareInvalidOutput(path string) []event.RedactedKeyMeta {
 	return []event.RedactedKeyMeta{
 		{
 			KeyPath: path,
