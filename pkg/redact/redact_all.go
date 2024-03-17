@@ -31,7 +31,7 @@ func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, []e
 	errs = append(errs, err...)
 	meta = append(meta, redactRequestBodyMeta...)
 
-	redactResponseHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(e.Response.Headers), shared.ResponseHeadersStr)
+	redactResponseHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(&e.Response.Headers), shared.ResponseHeadersStr)
 	errs = append(errs, err...)
 	meta = append(meta, redactResponseHeaderMeta...)
 
@@ -44,9 +44,13 @@ func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, []e
 
 func redactAllResponseBody(response *event.Response, path string) ([]event.RedactedKeyMeta, []error) {
 	errs := []error{}
+	result := []event.RedactedKeyMeta{}
+	if response.Body == nil {
+		return result, errs
+	}
 	v := reflect.ValueOf(response.Body)
 	if !v.IsValid() {
-		errs = append(errs, fmt.Errorf("redact-all: invalid reflected balue at path: %s", path))
+		errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
 		return []event.RedactedKeyMeta{}, errs
 	}
 	if v.Type().Kind() == reflect.String {
@@ -54,22 +58,26 @@ func redactAllResponseBody(response *event.Response, path string) ([]event.Redac
 		response.Body = ""
 		return result, nil
 	}
-	return redactAllHelperRecurse(reflect.ValueOf(response.Body), path)
+	return redactAllHelperRecurse(v, path)
 }
 
 func redactAllRequestBody(request *event.Request, path string) ([]event.RedactedKeyMeta, []error) {
 	errs := []error{}
+	result := []event.RedactedKeyMeta{}
+	if request.Body == nil {
+		return result, errs
+	}
 	v := reflect.ValueOf(request.Body)
 	if !v.IsValid() {
-		errs = append(errs, fmt.Errorf("redact-all: invalid reflected balue at path: %s", path))
-		return []event.RedactedKeyMeta{}, errs
+		errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
+		return result, errs
 	}
 	if v.Type().Kind() == reflect.String {
 		result := prepareOutput(v, path)
 		request.Body = ""
 		return result, errs
 	}
-	return redactAllHelperRecurse(reflect.ValueOf(request.Body), path)
+	return redactAllHelperRecurse(v, path)
 }
 
 func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMeta, []error) {
