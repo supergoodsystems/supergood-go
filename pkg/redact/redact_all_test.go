@@ -29,7 +29,7 @@ func Test_Redact_All(t *testing.T) {
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["keyInt"])
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["keyFloat"])
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["nested"].(map[string]any)["key"])
-		require.Equal(t, nil, events[0].Request.Headers["key"])
+		require.Equal(t, "", events[0].Request.Headers["key"])
 
 		// ensure all keys tracked are redacted
 		expectedKeys := []SensitiveKeyExpected{
