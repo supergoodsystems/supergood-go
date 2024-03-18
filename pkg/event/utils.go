@@ -79,7 +79,7 @@ func duplicateBody(r io.ReadCloser) (body any, rc io.ReadCloser) {
 	rc = &readCloser{c: r, r: bytes.NewReader(b), e: err}
 
 	if !utf8.Valid(b) {
-		body = b
+		body = &b
 	} else {
 		body = map[string]any{}
 		if err := json.Unmarshal(b, &body); err != nil {
