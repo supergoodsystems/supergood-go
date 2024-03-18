@@ -207,14 +207,18 @@ func shouldTraverse(v reflect.Value) bool {
 func prepareOutput(v reflect.Value, path string) []event.RedactedKeyMeta {
 	size := getSize(v)
 	val := v
-	if v.Type().Kind() == reflect.Interface || v.Type().Kind() == reflect.Pointer {
+	if val.IsValid() && (val.Type().Kind() == reflect.Interface || val.Type().Kind() == reflect.Pointer) {
 		val = v.Elem()
+	}
+	kind := "invalid"
+	if val.IsValid() {
+		kind = formatKind(val.Type().Kind())
 	}
 	return []event.RedactedKeyMeta{
 		{
 			KeyPath: path,
 			Length:  size,
-			Type:    formatKind(val.Type().Kind()),
+			Type:    kind,
 		},
 	}
 }
