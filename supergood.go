@@ -18,7 +18,9 @@ import (
 	"strings"
 	"time"
 
+	uuid "github.com/satori/go.uuid"
 	"github.com/supergoodsystems/supergood-go/pkg/event"
+	"github.com/supergoodsystems/supergood-go/pkg/middleware"
 	"github.com/supergoodsystems/supergood-go/pkg/redact"
 	remoteconfig "github.com/supergoodsystems/supergood-go/pkg/remote-config"
 )
@@ -87,6 +89,16 @@ func (sg *Service) Wrap(client *http.Client) *http.Client {
 		Jar:           client.Jar,
 		Timeout:       client.Timeout,
 	}
+}
+
+func (sg *Service) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := uuid.NewV4().String()
+		o := &middleware.ResponseObserver{ResponseWriter: w}
+		sg.LogRequest(id, event.NewRequest(id, r), "route-needed")
+		next.ServeHTTP(o, r)
+		sg.LogResponse(id, event.NewResponseFromMiddlewareObserver(o))
+	})
 }
 
 // Close sends any pending requests to supergood
