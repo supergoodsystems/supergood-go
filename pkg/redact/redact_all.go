@@ -206,11 +206,15 @@ func shouldTraverse(v reflect.Value) bool {
 
 func prepareOutput(v reflect.Value, path string) []event.RedactedKeyMeta {
 	size := getSize(v)
+	val := v
+	if v.Type().Kind() == reflect.Interface || v.Type().Kind() == reflect.Pointer {
+		val = v.Elem()
+	}
 	return []event.RedactedKeyMeta{
 		{
 			KeyPath: path,
 			Length:  size,
-			Type:    formatKind(v.Type().Kind()),
+			Type:    formatKind(val.Type().Kind()),
 		},
 	}
 }
