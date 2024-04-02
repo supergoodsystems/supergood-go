@@ -43,4 +43,5 @@ type telemetry struct {
 	CacheKeyCount int    `json:"cacheKeys"`
 	CacheSize     int    `json:"cacheSize"`
 	ServiceName   string `json:"serviceName"`
+	SupergoodApi  string `json:"supergoodApi"`
 }

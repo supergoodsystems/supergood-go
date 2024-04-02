@@ -185,6 +185,7 @@ func (sg *Service) flush(force bool) error {
 	}
 
 	sg.logTelemtry(telemetry{
+		SupergoodApi:  "supergood-go",
 		ServiceName:   sg.options.ServiceName,
 		CacheKeyCount: queueLen,
 		CacheSize:     cacheSize,
