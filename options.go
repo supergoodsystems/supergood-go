@@ -85,6 +85,9 @@ type Options struct {
 	// (defaults to the SUPERGOOD_TELEMETRY_URL environment variable,
 	// or "https://telemetry.supergood.ai" if not set)
 	TelemetryURL string
+
+	// MaxCacheSizeBytes is the maximum size the cache can grow before we stop appending to the cache
+	MaxCacheSizeBytes int
 }
 
 func (o *Options) parse() (*Options, error) {
@@ -205,6 +208,10 @@ func (o *Options) parse() (*Options, error) {
 	}
 	if o.TelemetryURL == "" {
 		o.TelemetryURL = "https://telemetry.supergood.ai"
+	}
+
+	if o.MaxCacheSizeBytes == 0 {
+		o.MaxCacheSizeBytes = 1000000 // 1MB
 	}
 
 	return o, nil

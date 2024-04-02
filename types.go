@@ -24,6 +24,7 @@ type Service struct {
 	mutex        sync.Mutex
 	options      *Options
 	queue        map[string]*event.Event
+	size         int
 	RemoteConfig remoteconfig.RemoteConfig
 }
 
@@ -39,6 +40,7 @@ type packageVersion struct {
 }
 
 type telemetry struct {
-	CacheKeyCount int    `json:"cacheKeyCount"`
+	CacheKeyCount int    `json:"cacheKeys"`
+	CacheSize     int    `json:"cacheSize"`
 	ServiceName   string `json:"serviceName"`
 }

@@ -8,6 +8,7 @@ type Event struct {
 	Request  *Request  `json:"request"`
 	Response *Response `json:"response,omitempty"`
 	MetaData MetaData  `json:"metadata"`
+	Size     int
 }
 
 type Request struct {

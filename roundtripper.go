@@ -33,9 +33,11 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	id := uuid.NewV4().String()
-	rt.sg.LogRequest(id, event.NewRequest(id, req), endpointId)
+	logged := rt.sg.LogRequest(id, event.NewRequest(id, req), endpointId)
 	resp, err := rt.next.RoundTrip(req)
-	rt.sg.LogResponse(id, event.NewResponse(resp, err))
+	if logged {
+		rt.sg.LogResponse(id, event.NewResponse(resp, err))
+	}
 
 	return resp, err
 }
