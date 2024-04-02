@@ -104,7 +104,10 @@ func (sg *Service) LogRequest(id string, req *event.Request, endpointId string) 
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 
-	bytes, _ := json.Marshal(req)
+	bytes, err := json.Marshal(req)
+	if err != nil {
+		return false
+	}
 	requestSize := len(bytes)
 	if sg.size+requestSize > sg.options.MaxCacheSizeBytes {
 		return false
@@ -118,7 +121,10 @@ func (sg *Service) LogResponse(id string, resp *event.Response) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 
-	bytes, _ := json.Marshal(resp)
+	bytes, err := json.Marshal(resp)
+	if err != nil {
+		return
+	}
 	responseSize := len(bytes)
 	if entry, ok := sg.queue[id]; ok {
 		entry.Response = resp
