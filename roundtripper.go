@@ -3,7 +3,7 @@ package supergood
 import (
 	"net/http"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/supergoodsystems/supergood-go/pkg/event"
 )
 
@@ -32,7 +32,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		return rt.next.RoundTrip(req)
 	}
 
-	id := uuid.NewV4().String()
+	id := uuid.New().String()
 	logged := rt.sg.LogRequest(id, event.NewRequest(id, req), endpointId)
 	resp, err := rt.next.RoundTrip(req)
 	if logged {

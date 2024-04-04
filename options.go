@@ -211,7 +211,7 @@ func (o *Options) parse() (*Options, error) {
 	}
 
 	if o.MaxCacheSizeBytes == 0 {
-		o.MaxCacheSizeBytes = 1000000 // 1MB
+		o.MaxCacheSizeBytes = 100000000 // 100MB
 	}
 
 	return o, nil
