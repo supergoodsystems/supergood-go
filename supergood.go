@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -99,18 +100,37 @@ func (sg *Service) Close() error {
 	return <-ch
 }
 
-func (sg *Service) LogRequest(id string, req *event.Request, endpointId string) {
+func (sg *Service) LogRequest(id string, req *event.Request, endpointId string) bool {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
-	sg.queue[id] = &event.Event{Request: req, MetaData: event.MetaData{EndpointId: endpointId}}
+
+	bytes, err := json.Marshal(req)
+	if err != nil {
+		return false
+	}
+	requestSize := len(bytes)
+	if sg.size+requestSize > sg.options.MaxCacheSizeBytes {
+		return false
+	}
+	sg.size += requestSize
+	sg.queue[id] = &event.Event{Request: req, MetaData: event.MetaData{EndpointId: endpointId}, Size: requestSize}
+	return true
 }
 
 func (sg *Service) LogResponse(id string, resp *event.Response) {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
+
+	bytes, err := json.Marshal(resp)
+	if err != nil {
+		return
+	}
+	responseSize := len(bytes)
 	if entry, ok := sg.queue[id]; ok {
 		entry.Response = resp
 		entry.Response.Duration = int(entry.Response.RespondedAt.Sub(entry.Request.RequestedAt) / time.Millisecond)
+		entry.Size += responseSize
+		sg.size += responseSize
 	}
 }
 
@@ -142,12 +162,19 @@ func (sg *Service) flush(force bool) error {
 	sg.mutex.Lock()
 	defer sg.mutex.Unlock()
 
+	cacheSize := sg.size
 	toSend := []*event.Event{}
 	queueLen := len(sg.queue)
 	for key, entry := range sg.queue {
 		if entry.Response == nil && !force {
 			continue
 		}
+		sg.size -= entry.Size
+		if sg.size < 0 {
+			sg.handleError(errors.New("unexpected error. Cache size is negative"))
+			sg.size = 0
+		}
+
 		delete(sg.queue, key)
 		toSend = append(toSend, entry)
 	}
@@ -164,8 +191,10 @@ func (sg *Service) flush(force bool) error {
 	}
 
 	sg.logTelemtry(telemetry{
+		SupergoodApi:  "supergood-go",
 		ServiceName:   sg.options.ServiceName,
 		CacheKeyCount: queueLen,
+		CacheSize:     cacheSize,
 	})
 	return sg.post(sg.options.BaseURL, "/events", toSend)
 }
