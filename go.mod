@@ -3,10 +3,11 @@ module github.com/supergoodsystems/supergood-go
 go 1.19
 
 require (
-	github.com/satori/go.uuid v1.2.0
+	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/net v0.19.0
 	golang.org/x/oauth2 v0.9.0
+
 )
 
 require (

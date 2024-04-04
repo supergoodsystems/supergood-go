@@ -434,4 +434,13 @@ func Test_Supergood(t *testing.T) {
 		// Does not capture events on failed remote config initialization
 		require.Len(t, events, 0)
 	})
+
+	t.Run("handling max cache size reached", func(t *testing.T) {
+		reset()
+		sg, err := New(&Options{MaxCacheSizeBytes: 1})
+		require.NoError(t, err)
+		defer sg.Close()
+		sg.DefaultClient.Get(host + "/echo")
+		require.Len(t, events, 0)
+	})
 }
