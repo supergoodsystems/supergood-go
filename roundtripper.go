@@ -34,7 +34,18 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	id := uuid.New().String()
 	logged := rt.sg.LogRequest(id, event.NewRequest(id, req), endpointId)
-	resp, err := rt.next.RoundTrip(req)
+
+	var resp *http.Response
+	var err error
+	if endpointAction == "Block" {
+		resp = &http.Response{
+			Status:     "Too many requests",
+			StatusCode: 429,
+		}
+	} else {
+		resp, err = rt.next.RoundTrip(req)
+	}
+
 	if logged {
 		rt.sg.LogResponse(id, event.NewResponse(resp, err))
 	}
