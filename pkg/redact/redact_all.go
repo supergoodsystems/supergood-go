@@ -133,8 +133,7 @@ func redactAllHelperRecurse(v reflect.Value, path string, allowedKeys map[string
 				if mapVal.Type() == nil {
 					continue
 				}
-				_, allow := allowedKeys[path]
-				if allow {
+				if _, allow := allowedKeys[path]; allow {
 					continue
 				}
 				v.SetMapIndex(key, reflect.Zero(mapVal.Type()))
@@ -159,8 +158,7 @@ func redactAllHelperRecurse(v reflect.Value, path string, allowedKeys map[string
 				errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
 				return []event.RedactedKeyMeta{}, errs
 			} else {
-				_, allow := allowedKeys[path]
-				if allow {
+				if _, allow := allowedKeys[path]; allow {
 					return []event.RedactedKeyMeta{}, errs
 				}
 				result := prepareOutput(v, path)
@@ -181,8 +179,7 @@ func redactAllHelperRecurse(v reflect.Value, path string, allowedKeys map[string
 			errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
 			return []event.RedactedKeyMeta{}, errs
 		}
-		_, allow := allowedKeys[path]
-		if allow {
+		if _, allow := allowedKeys[path]; allow {
 			return []event.RedactedKeyMeta{}, errs
 		}
 		result := prepareOutput(v, path)
