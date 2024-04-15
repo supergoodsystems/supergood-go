@@ -3,6 +3,7 @@ package redact
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 
 	"github.com/supergoodsystems/supergood-go/internal/shared"
 	"github.com/supergoodsystems/supergood-go/pkg/event"
@@ -133,7 +134,7 @@ func redactAllHelperRecurse(v reflect.Value, path string, allowedKeys map[string
 				if mapVal.Type() == nil {
 					continue
 				}
-				if _, allow := allowedKeys[path]; allow {
+				if !shouldRedact(path, allowedKeys) {
 					continue
 				}
 				v.SetMapIndex(key, reflect.Zero(mapVal.Type()))
@@ -158,7 +159,7 @@ func redactAllHelperRecurse(v reflect.Value, path string, allowedKeys map[string
 				errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
 				return []event.RedactedKeyMeta{}, errs
 			} else {
-				if _, allow := allowedKeys[path]; allow {
+				if !shouldRedact(path, allowedKeys) {
 					return []event.RedactedKeyMeta{}, errs
 				}
 				result := prepareOutput(v, path)
@@ -179,7 +180,7 @@ func redactAllHelperRecurse(v reflect.Value, path string, allowedKeys map[string
 			errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
 			return []event.RedactedKeyMeta{}, errs
 		}
-		if _, allow := allowedKeys[path]; allow {
+		if !shouldRedact(path, allowedKeys) {
 			return []event.RedactedKeyMeta{}, errs
 		}
 		result := prepareOutput(v, path)
@@ -243,4 +244,21 @@ func getAllowedKeys(sensitiveKeys []remoteconfig.SensitiveKeys) map[string]struc
 		keysToAllow[sensitiveKey.KeyPath] = struct{}{}
 	}
 	return keysToAllow
+}
+
+func shouldRedact(path string, allowedKeys map[string]struct{}) bool {
+	if _, allowed := allowedKeys[path]; allowed {
+		return false
+	}
+	regexp, err := regexp.Compile(`\[\d+\]`)
+	if err != nil {
+		return true
+	}
+
+	cleanedPath := regexp.ReplaceAllString(path, "[]")
+	if _, allowed := allowedKeys[cleanedPath]; allowed {
+		return false
+	}
+
+	return true
 }

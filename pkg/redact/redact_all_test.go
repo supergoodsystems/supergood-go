@@ -108,6 +108,16 @@ func Test_Redact_All(t *testing.T) {
 					KeyPath: "responseBody.key",
 					Action:  "Allow",
 				},
+				{
+					Id:      "test-id",
+					KeyPath: "requestBody.nested.key",
+					Action:  "Allow",
+				},
+				{
+					Id:      "test-id",
+					KeyPath: "requestBody.arrayOfObj[].field1",
+					Action:  "Allow",
+				},
 			},
 		},
 		}
@@ -119,9 +129,9 @@ func Test_Redact_All(t *testing.T) {
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["key"])
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["keyInt"])
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["keyFloat"])
-		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["nested"].(map[string]any)["key"])
+		require.Equal(t, "value", events[0].Request.Body.(map[string]any)["nested"].(map[string]any)["key"])
 		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["array"])
-		require.Equal(t, nil, events[0].Request.Body.(map[string]any)["arrayOfObj"].([]map[string]any)[0]["field1"])
+		require.Equal(t, "value1", events[0].Request.Body.(map[string]any)["arrayOfObj"].([]map[string]any)[0]["field1"])
 		require.Equal(t, "value", events[0].Response.Body.(map[string]any)["key"])
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["keyInt"])
 		require.Equal(t, nil, events[0].Response.Body.(map[string]any)["keyFloat"])
@@ -142,15 +152,15 @@ func Test_Redact_All(t *testing.T) {
 				Name: "requestBody.keyFloat",
 				Type: "float",
 			},
-			{
-				Name: "requestBody.nested.key",
-				Type: "string",
-			},
-			{
-				Name: "requestBody.arrayOfObj[0].field1",
-				Type: "string",
-			},
 			// NOTE: Below entry should not belong in sensitive keys since its explicitly allowed above
+			// {
+			// 	Name: "requestBody.nested.key",
+			// 	Type: "string",
+			// },
+			// {
+			// 	Name: "requestBody.arrayOfObj[0].field1",
+			// 	Type: "string",
+			// },
 			// {
 			// 	Name: "responseBody.key",
 			// 	Type: "string",
