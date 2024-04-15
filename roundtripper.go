@@ -39,7 +39,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	var err error
 	if endpointAction == "Block" {
 		resp = &http.Response{
-			Status:     "Too many requests",
+			Status:     "Blocked by Supergood: Too many requests",
 			StatusCode: 429,
 		}
 	} else {
