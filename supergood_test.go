@@ -124,6 +124,24 @@ func mockApiServer(t *testing.T) string {
 					},
 				},
 				{
+					Id:     "test-id-blocked",
+					Domain: "blocked-domain.com",
+					Name:   "Blocked domain",
+					Endpoints: []remoteconfig.Endpoint{
+						{
+							Id:   "test-endpoint-id",
+							Name: "block me endpoint",
+							MatchingRegex: remoteconfig.MatchingRegex{
+								Location: "path",
+								Regex:    "/block-me",
+							},
+							EndpointConfiguration: remoteconfig.EndpointConfiguration{
+								Action: "Block",
+							},
+						},
+					},
+				},
+				{
 					Domain: "supergood-testbed.herokuapp.com",
 				},
 				{
@@ -274,6 +292,16 @@ func Test_Supergood(t *testing.T) {
 		sg.DefaultClient.Get("https://ignored-domain.com/ignore-me")
 		require.NoError(t, sg.Close())
 		require.Len(t, events, 0)
+	})
+
+	t.Run("Blocked Endpoints", func(t *testing.T) {
+		reset()
+		sg, err := New(&Options{})
+		require.NoError(t, err)
+		sg.DefaultClient.Get("https://blocked-domain.com/block-me")
+		require.NoError(t, sg.Close())
+		require.Len(t, events, 1)
+		require.Equal(t, 429, events[0].Response.Status)
 	})
 
 	t.Run("test timing", func(t *testing.T) {
