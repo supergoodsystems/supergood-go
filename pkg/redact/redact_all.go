@@ -238,10 +238,9 @@ func prepareOutput(v reflect.Value, path string) []event.RedactedKeyMeta {
 func getAllowedKeys(sensitiveKeys []remoteconfig.SensitiveKeys) map[string]struct{} {
 	keysToAllow := map[string]struct{}{}
 	for _, sensitiveKey := range sensitiveKeys {
-		if sensitiveKey.Action != "Allow" {
-			continue
+		if sensitiveKey.Action == "ALLOW" {
+			keysToAllow[sensitiveKey.KeyPath] = struct{}{}
 		}
-		keysToAllow[sensitiveKey.KeyPath] = struct{}{}
 	}
 	return keysToAllow
 }

@@ -106,17 +106,17 @@ func Test_Redact_All(t *testing.T) {
 				{
 					Id:      "test-id",
 					KeyPath: "responseBody.key",
-					Action:  "Allow",
+					Action:  "ALLOW",
 				},
 				{
 					Id:      "test-id",
 					KeyPath: "requestBody.nested.key",
-					Action:  "Allow",
+					Action:  "ALLOW",
 				},
 				{
 					Id:      "test-id",
 					KeyPath: "requestBody.arrayOfObj[].field1",
-					Action:  "Allow",
+					Action:  "ALLOW",
 				},
 			},
 		},
