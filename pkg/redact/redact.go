@@ -28,6 +28,9 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
 		}
 
 		for _, sensitiveKey := range endpoint.SensitiveKeys {
+			if sensitiveKey.Action != "REDACT" {
+				continue
+			}
 			formattedParts, err := formatSensitiveKey(sensitiveKey.KeyPath)
 			if err != nil {
 				errs = append(errs, err)

@@ -19,12 +19,12 @@ func Test_Redact_With_Path(t *testing.T) {
 			Location: "path",
 			Action:   "Accept",
 			SensitiveKeys: []remoteconfig.SensitiveKeys{
-				{KeyPath: "requestBody.key"},
-				{KeyPath: "requestBody.keyInt"},
-				{KeyPath: "requestBody.keyFloat"},
-				{KeyPath: "requestBody.nested.key"},
-				{KeyPath: "requestBody.array"},
-				{KeyPath: "requestBody.arrayOfObj[].field1"},
+				{KeyPath: "requestBody.key", Action: "REDACT"},
+				{KeyPath: "requestBody.keyInt", Action: "REDACT"},
+				{KeyPath: "requestBody.keyFloat", Action: "REDACT"},
+				{KeyPath: "requestBody.nested.key", Action: "REDACT"},
+				{KeyPath: "requestBody.array", Action: "REDACT"},
+				{KeyPath: "requestBody.arrayOfObj[].field1", Action: "REDACT"},
 			},
 		}
 		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
@@ -66,10 +66,10 @@ func Test_Redact_With_Path(t *testing.T) {
 			Location: "path",
 			Action:   "Accept",
 			SensitiveKeys: []remoteconfig.SensitiveKeys{
-				{KeyPath: "responseBody.key"},
-				{KeyPath: "responseBody.keyInt"},
-				{KeyPath: "responseBody.keyFloat"},
-				{KeyPath: "responseBody.nested.key"},
+				{KeyPath: "responseBody.key", Action: "REDACT"},
+				{KeyPath: "responseBody.keyInt", Action: "REDACT"},
+				{KeyPath: "responseBody.keyFloat", Action: "REDACT"},
+				{KeyPath: "responseBody.nested.key", Action: "REDACT"},
 			},
 		}
 		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
@@ -101,7 +101,7 @@ func Test_Redact_With_Path(t *testing.T) {
 			Regex:         *regex,
 			Location:      "path",
 			Action:        "Accept",
-			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestHeaders.key"}},
+			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestHeaders.key", Action: "REDACT"}},
 		}
 		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
 		errors := Redact(events, config)
@@ -117,7 +117,7 @@ func Test_Redact_With_Path(t *testing.T) {
 			Regex:         *regex,
 			Location:      "path",
 			Action:        "Accept",
-			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestBody.non-existant-key"}},
+			SensitiveKeys: []remoteconfig.SensitiveKeys{{KeyPath: "requestBody.non-existant-key", Action: "REDACT"}},
 		}
 		config.Set("test.com", map[string]remoteconfig.EndpointCacheVal{"endpointId": cacheVal})
 		errors := Redact(events, config)
