@@ -3,9 +3,11 @@ package redact
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 
 	"github.com/supergoodsystems/supergood-go/internal/shared"
 	"github.com/supergoodsystems/supergood-go/pkg/event"
+	remoteconfig "github.com/supergoodsystems/supergood-go/pkg/remote-config"
 )
 
 var shouldTraverseKind = map[reflect.Kind]struct{}{
@@ -19,23 +21,24 @@ var shouldTraverseKind = map[reflect.Kind]struct{}{
 	reflect.UnsafePointer: {},
 }
 
-func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, []error) {
+func redactAll(domain string, e *event.Event, sensitiveKeys []remoteconfig.SensitiveKeys) ([]event.RedactedKeyMeta, []error) {
 	meta := []event.RedactedKeyMeta{}
 	errs := []error{}
+	allowedKeys := getAllowedKeys(sensitiveKeys)
 
-	redactRequestHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(e.Request.Headers), shared.RequestHeadersStr)
+	redactRequestHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(e.Request.Headers), shared.RequestHeadersStr, allowedKeys)
 	errs = append(errs, err...)
 	meta = append(meta, redactRequestHeaderMeta...)
 
-	redactRequestBodyMeta, err := redactAllRequestBody(e.Request, shared.RequestBodyStr)
+	redactRequestBodyMeta, err := redactAllRequestBody(e.Request, shared.RequestBodyStr, allowedKeys)
 	errs = append(errs, err...)
 	meta = append(meta, redactRequestBodyMeta...)
 
-	redactResponseHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(&e.Response.Headers), shared.ResponseHeadersStr)
+	redactResponseHeaderMeta, err := redactAllHelperRecurse(reflect.ValueOf(&e.Response.Headers), shared.ResponseHeadersStr, allowedKeys)
 	errs = append(errs, err...)
 	meta = append(meta, redactResponseHeaderMeta...)
 
-	redactResponseBodyMeta, err := redactAllResponseBody(e.Response, shared.ResponseBodyStr)
+	redactResponseBodyMeta, err := redactAllResponseBody(e.Response, shared.ResponseBodyStr, allowedKeys)
 	errs = append(errs, err...)
 	meta = append(meta, redactResponseBodyMeta...)
 
@@ -45,7 +48,7 @@ func redactAll(domain, url string, e *event.Event) ([]event.RedactedKeyMeta, []e
 // NOTE: duplicate body will attempt to cast to map[string]interface{} in the case it cannot
 // it will cast the response into a string. In the case the body is returned as a string, the
 // reflected value is not settable - and is why this check is in place below
-func redactAllResponseBody(response *event.Response, path string) ([]event.RedactedKeyMeta, []error) {
+func redactAllResponseBody(response *event.Response, path string, allowedKeys map[string]struct{}) ([]event.RedactedKeyMeta, []error) {
 	errs := []error{}
 	result := []event.RedactedKeyMeta{}
 	if response.Body == nil {
@@ -62,13 +65,13 @@ func redactAllResponseBody(response *event.Response, path string) ([]event.Redac
 		response.Body = ""
 		return result, nil
 	}
-	return redactAllHelperRecurse(v, path)
+	return redactAllHelperRecurse(v, path, allowedKeys)
 }
 
 // NOTE: duplicate body will attempt to cast to map[string]interface{} in the case it cannot
 // it will cast the request into a string. In the case the body is returned as a string, the
 // reflected value is not settable - and is why this check is in place below
-func redactAllRequestBody(request *event.Request, path string) ([]event.RedactedKeyMeta, []error) {
+func redactAllRequestBody(request *event.Request, path string, allowedKeys map[string]struct{}) ([]event.RedactedKeyMeta, []error) {
 	errs := []error{}
 	result := []event.RedactedKeyMeta{}
 	if request.Body == nil {
@@ -84,10 +87,10 @@ func redactAllRequestBody(request *event.Request, path string) ([]event.Redacted
 		request.Body = ""
 		return result, errs
 	}
-	return redactAllHelperRecurse(v, path)
+	return redactAllHelperRecurse(v, path, allowedKeys)
 }
 
-func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMeta, []error) {
+func redactAllHelperRecurse(v reflect.Value, path string, allowedKeys map[string]struct{}) ([]event.RedactedKeyMeta, []error) {
 	errs := []error{}
 	if !v.IsValid() {
 		errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
@@ -98,13 +101,13 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 		if v.IsNil() {
 			return []event.RedactedKeyMeta{}, nil
 		}
-		return redactAllHelperRecurse(v.Elem(), path)
+		return redactAllHelperRecurse(v.Elem(), path, allowedKeys)
 
 	case reflect.Struct:
 		// NOTE: duplicate body should never return a struct. It will create a map[interface]interface{} instead
 		results := []event.RedactedKeyMeta{}
 		for i := 0; i < v.NumField(); i++ {
-			result, err := redactAllHelperRecurse(v.Field(i), v.Field(i).Kind().String()) // <- not sure yet how to grab the name of the key using reflection
+			result, err := redactAllHelperRecurse(v.Field(i), v.Field(i).Kind().String(), allowedKeys) // <- not sure yet how to grab the name of the key using reflection
 			if err != nil {
 				return results, err
 			}
@@ -131,10 +134,13 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 				if mapVal.Type() == nil {
 					continue
 				}
+				if !shouldRedact(path, allowedKeys) {
+					continue
+				}
 				v.SetMapIndex(key, reflect.Zero(mapVal.Type()))
 				results = append(results, prepareOutput(mapVal, path)...)
 			} else {
-				result, err := redactAllHelperRecurse(mapVal, path)
+				result, err := redactAllHelperRecurse(mapVal, path, allowedKeys)
 				errs = append(errs, err...)
 				results = append(results, result...)
 			}
@@ -153,6 +159,9 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 				errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
 				return []event.RedactedKeyMeta{}, errs
 			} else {
+				if !shouldRedact(path, allowedKeys) {
+					return []event.RedactedKeyMeta{}, errs
+				}
 				result := prepareOutput(v, path)
 				v.Set(reflect.Zero(v.Type()))
 				return result, errs
@@ -160,7 +169,7 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 		}
 
 		for i := 0; i < v.Len(); i++ {
-			result, err := redactAllHelperRecurse(v.Index(i), fmt.Sprintf("%s[%d]", path, i))
+			result, err := redactAllHelperRecurse(v.Index(i), fmt.Sprintf("%s[%d]", path, i), allowedKeys)
 			errs = append(errs, err...)
 			results = append(results, result...)
 		}
@@ -169,6 +178,9 @@ func redactAllHelperRecurse(v reflect.Value, path string) ([]event.RedactedKeyMe
 	default:
 		if !v.CanSet() {
 			errs = append(errs, fmt.Errorf("redact-all: invalid reflected value at path: %s", path))
+			return []event.RedactedKeyMeta{}, errs
+		}
+		if !shouldRedact(path, allowedKeys) {
 			return []event.RedactedKeyMeta{}, errs
 		}
 		result := prepareOutput(v, path)
@@ -221,4 +233,31 @@ func prepareOutput(v reflect.Value, path string) []event.RedactedKeyMeta {
 			Type:    kind,
 		},
 	}
+}
+
+func getAllowedKeys(sensitiveKeys []remoteconfig.SensitiveKeys) map[string]struct{} {
+	keysToAllow := map[string]struct{}{}
+	for _, sensitiveKey := range sensitiveKeys {
+		if sensitiveKey.Action == "ALLOW" {
+			keysToAllow[sensitiveKey.KeyPath] = struct{}{}
+		}
+	}
+	return keysToAllow
+}
+
+func shouldRedact(path string, allowedKeys map[string]struct{}) bool {
+	if _, allowed := allowedKeys[path]; allowed {
+		return false
+	}
+	regexp, err := regexp.Compile(`\[\d+\]`)
+	if err != nil {
+		return true
+	}
+
+	cleanedPath := regexp.ReplaceAllString(path, "[]")
+	if _, allowed := allowedKeys[cleanedPath]; allowed {
+		return false
+	}
+
+	return true
 }
