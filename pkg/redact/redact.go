@@ -15,23 +15,22 @@ func Redact(events []*event.Event, rc *remoteconfig.RemoteConfig) []error {
 	forceRedact := rc.IsRedactAllEnabled()
 	for _, e := range events {
 		domain := domainutils.GetDomainFromHost(e.Request.URL)
+		endpoints := rc.Get(domain)
+		if len(endpoints) == 0 && !forceRedact {
+			continue
+		}
+		endpoint := endpoints[e.MetaData.EndpointId]
 		if forceRedact {
-			meta, redactErrs := redactAll(domain, e.Request.URL, e)
+			meta, redactErrs := redactAll(domain, e, endpoint.SensitiveKeys)
 			errs = append(errs, redactErrs...)
 			e.MetaData.SensitiveKeys = append(e.MetaData.SensitiveKeys, meta...)
 			continue
 		}
 
-		endpoints := rc.Get(domain)
-		if len(endpoints) == 0 {
-			continue
-		}
-		endpoint, ok := endpoints[e.MetaData.EndpointId]
-		if !ok {
-			continue
-		}
-
 		for _, sensitiveKey := range endpoint.SensitiveKeys {
+			if sensitiveKey.Action != "REDACT" {
+				continue
+			}
 			formattedParts, err := formatSensitiveKey(sensitiveKey.KeyPath)
 			if err != nil {
 				errs = append(errs, err)
