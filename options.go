@@ -170,32 +170,6 @@ func (o *Options) parse() (*Options, error) {
 
 	}
 
-	if o.SelectRequests == nil {
-		url, err := url.Parse(o.BaseURL)
-		if err != nil {
-			return nil, fmt.Errorf("supergood: invalid BaseURL: %w", err)
-		}
-
-		baseUrlHostName := strings.TrimPrefix(url.Host, "www.")
-
-		if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
-			o.SelectRequests = func(r *http.Request) bool {
-				if r != nil {
-					return r.URL.Host != baseUrlHostName && contains(r.URL.Host, o.AllowedDomains)
-				}
-				return true
-			}
-		} else {
-			// Do not log API calls to supergood
-			o.SelectRequests = func(r *http.Request) bool {
-				if r != nil {
-					return r.URL.Host != baseUrlHostName
-				}
-				return true
-			}
-		}
-	}
-
 	if o.RemoteConfigFetchInterval == 0 {
 		o.RemoteConfigFetchInterval = 10 * time.Second
 	}
@@ -215,6 +189,25 @@ func (o *Options) parse() (*Options, error) {
 	}
 
 	return o, nil
+}
+
+func (o *Options) isRequestInAllowedDomains(req *http.Request) (bool, error) {
+	url, err := url.Parse(o.BaseURL)
+	if err != nil {
+		return false, fmt.Errorf("supergood: invalid BaseURL: %w", err)
+	}
+	baseUrlHostName := strings.TrimPrefix(url.Host, "www.")
+	if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
+		if req != nil {
+			return req.URL.Host != baseUrlHostName && contains(req.URL.Host, o.AllowedDomains), nil
+		}
+		return true, nil
+	} else {
+		if req != nil {
+			return req.URL.Host != baseUrlHostName, nil
+		}
+		return true, nil
+	}
 }
 
 // Function to determine if a target string contains any value from an array of strings

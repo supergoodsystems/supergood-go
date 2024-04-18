@@ -25,10 +25,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		endpointAction = endpoint.Action
 	}
 
-	// Do not forward to supergood if the request is not in the list of user provided
-	// selected requests OR if the request is ignored by the supergood remote config OR if
-	// remote config is not initialized
-	if !rt.sg.options.SelectRequests(req) || endpointAction == "Ignore" || !rt.sg.RemoteConfig.IsInitialized() {
+	if !rt.shouldLogRequest(req, endpointAction) {
 		return rt.next.RoundTrip(req)
 	}
 
@@ -51,4 +48,28 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, err
+}
+
+func (rt *roundTripper) shouldLogRequest(req *http.Request, endpointAction string) bool {
+	if !rt.sg.RemoteConfig.IsInitialized() {
+		return false
+	}
+
+	allowed, err := rt.sg.options.isRequestInAllowedDomains(req)
+	if err != nil {
+		rt.sg.handleError(err)
+	}
+	if !allowed {
+		return false
+	}
+
+	if endpointAction == "Ignore" {
+		return false
+	}
+
+	if rt.sg.options.SelectRequests != nil {
+		return rt.sg.options.SelectRequests(req)
+	}
+
+	return true
 }
