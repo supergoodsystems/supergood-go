@@ -25,7 +25,7 @@ func TestOptions_defaults(t *testing.T) {
 	require.Equal(t, len(o.RedactResponseBodyKeys), 0)
 	require.Equal(t, len(o.AllowedDomains), 0)
 	require.Equal(t, len(o.RedactRequestHeaderKeys), 0)
-	require.True(t, o.SelectRequests(nil))
+	require.Nil(t, o.SelectRequests)
 	require.NotNil(t, o.OnError)
 	require.Equal(t, o.FlushInterval, 1*time.Second)
 	require.Equal(t, o.HTTPClient, http.DefaultClient)
