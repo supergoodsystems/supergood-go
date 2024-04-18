@@ -54,18 +54,25 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func (rt *roundTripper) shouldLogRequest(req *http.Request, endpointAction string) bool {
-	isSelectedRequest := true
-	if rt.sg.options.SelectRequests != nil {
-		isSelectedRequest = rt.sg.options.SelectRequests(req)
+	if !rt.sg.RemoteConfig.IsInitialized() {
+		return false
 	}
 
 	allowed, err := rt.sg.options.isRequestInAllowedDomains(req)
 	if err != nil {
 		rt.sg.handleError(err)
 	}
-
-	if endpointAction == "Ignore" || !rt.sg.RemoteConfig.IsInitialized() || !isSelectedRequest || !allowed {
+	if !allowed {
 		return false
 	}
+
+	if endpointAction == "Ignore" {
+		return false
+	}
+
+	if rt.sg.options.SelectRequests != nil {
+		return rt.sg.options.SelectRequests(req)
+	}
+
 	return true
 }
