@@ -25,9 +25,6 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		endpointAction = endpoint.Action
 	}
 
-	// Do not forward to supergood if the request is not in the list of user provided
-	// selected requests OR if the request is ignored by the supergood remote config OR if
-	// remote config is not initialized
 	if !rt.shouldLogRequest(req, endpointAction) {
 		return rt.next.RoundTrip(req)
 	}
