@@ -3,6 +3,8 @@ package event
 import (
 	"net/http"
 	"time"
+
+	"github.com/supergoodsystems/supergood-go/pkg/middleware"
 )
 
 // overridden in tests
@@ -65,5 +67,15 @@ func NewResponse(res *http.Response, err error) *Response {
 		StatusText:  res.Status,
 		RespondedAt: now,
 		Body:        body,
+	}
+}
+
+func NewResponseFromMiddlewareObserver(r *middleware.ResponseObserver) *Response {
+	now := Clock()
+	return &Response{
+		Headers:     r.Headers,
+		Status:      r.Status,
+		RespondedAt: now,
+		Body:        r.Body,
 	}
 }
