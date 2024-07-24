@@ -23,7 +23,7 @@ func (rc *RemoteConfig) MatchRequestAgainstEndpoints(req *http.Request) (*Endpoi
 		return nil, errs
 	}
 	for _, endpoint := range endpoints {
-		if req.Method != endpoint.Method {
+		if strings.EqualFold(req.Method, endpoint.Method) || (req.Method == "" && endpoint.Method != "GET") {
 			continue
 		}
 		testVal, err := stringifyRequestAtLocation(req, endpoint.Location)
