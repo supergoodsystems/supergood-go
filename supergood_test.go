@@ -111,8 +111,9 @@ func mockApiServer(t *testing.T) string {
 					Name:   "Ignore me domain",
 					Endpoints: []remoteconfig.Endpoint{
 						{
-							Id:   "test-endpoint-id",
-							Name: "ignore me endpoint",
+							Id:     "test-endpoint-id",
+							Name:   "ignore me endpoint",
+							Method: "GET",
 							MatchingRegex: remoteconfig.MatchingRegex{
 								Location: "path",
 								Regex:    "/ignore-me",
@@ -129,8 +130,9 @@ func mockApiServer(t *testing.T) string {
 					Name:   "Blocked domain",
 					Endpoints: []remoteconfig.Endpoint{
 						{
-							Id:   "test-endpoint-id",
-							Name: "block me endpoint",
+							Id:     "test-endpoint-id",
+							Name:   "block me endpoint",
+							Method: "GET",
 							MatchingRegex: remoteconfig.MatchingRegex{
 								Location: "path",
 								Regex:    "/block-me",

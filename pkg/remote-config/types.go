@@ -47,6 +47,7 @@ type RemoteConfigResponse struct {
 type Endpoint struct {
 	Id                    string                `json:"id"`
 	Name                  string                `json:"name"`
+	Method                string                `json:"method"`
 	MatchingRegex         MatchingRegex         `json:"matchingRegex"`
 	EndpointConfiguration EndpointConfiguration `json:"endpointConfiguration"`
 }
@@ -74,6 +75,7 @@ type SensitiveKeys struct {
 type EndpointCacheVal struct {
 	Id            string
 	Regex         regexp.Regexp
+	Method        string
 	Location      string
 	Action        string
 	SensitiveKeys []SensitiveKeys
