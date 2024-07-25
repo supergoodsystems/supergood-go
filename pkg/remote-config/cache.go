@@ -50,6 +50,7 @@ func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 			}
 			endpointCacheVal := EndpointCacheVal{
 				Id:            endpoint.Id,
+				Method:        endpoint.Method,
 				Regex:         *regex,
 				Location:      endpoint.MatchingRegex.Location,
 				Action:        endpoint.EndpointConfiguration.Action,
