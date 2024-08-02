@@ -88,6 +88,12 @@ type Options struct {
 
 	// MaxCacheSizeBytes is the maximum size the cache can grow before we stop appending to the cache
 	MaxCacheSizeBytes int
+
+	// ProxyHost is the Supergood Proxy Hostname
+	ProxyHost string
+
+	// ProxyScheme is the Supergood Proxy HTTP Scheme
+	ProxyScheme string
 }
 
 func (o *Options) parse() (*Options, error) {
@@ -186,6 +192,20 @@ func (o *Options) parse() (*Options, error) {
 
 	if o.MaxCacheSizeBytes == 0 {
 		o.MaxCacheSizeBytes = 100000000 // 100MB
+	}
+
+	if o.ProxyHost == "" {
+		o.ProxyHost = os.Getenv("SUPERGOOD_PROXY_HOST")
+	}
+	if o.ProxyHost == "" {
+		o.ProxyHost = "proxy.supergood.ai"
+	}
+
+	if o.ProxyScheme == "" {
+		o.ProxyScheme = os.Getenv("SUPERGOOD_PROXY_SCHEME")
+	}
+	if o.ProxyScheme == "" {
+		o.ProxyScheme = "HTTPS"
 	}
 
 	return o, nil

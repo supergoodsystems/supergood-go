@@ -79,4 +79,5 @@ type EndpointCacheVal struct {
 	Location      string
 	Action        string
 	SensitiveKeys []SensitiveKeys
+	ProxyRequest  bool
 }
