@@ -54,6 +54,7 @@ func (rc *RemoteConfig) Create(remoteConfigArray []RemoteConfigResponse) error {
 				Regex:         *regex,
 				Location:      endpoint.MatchingRegex.Location,
 				Action:        endpoint.EndpointConfiguration.Action,
+				ProxyRequest:  config.ProxyRequest,
 				SensitiveKeys: rc.mergeSensitiveKeysOptions(config.Domain, endpoint.EndpointConfiguration.SensitiveKeys),
 			}
 			cacheVal[endpoint.Id] = endpointCacheVal

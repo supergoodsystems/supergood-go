@@ -38,10 +38,11 @@ type RemoteConfig struct {
 }
 
 type RemoteConfigResponse struct {
-	Id        string     `json:"id"`
-	Domain    string     `json:"domain"`
-	Name      string     `json:"name"`
-	Endpoints []Endpoint `json:"endpoints"`
+	Id           string     `json:"id"`
+	Domain       string     `json:"domain"`
+	Name         string     `json:"name"`
+	ProxyRequest bool       `json:"proxyRequest"`
+	Endpoints    []Endpoint `json:"endpoints"`
 }
 
 type Endpoint struct {
