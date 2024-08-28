@@ -85,11 +85,13 @@ func (rt *roundTripper) shouldLogRequest(req *http.Request, endpointAction strin
 
 func (rt *roundTripper) proxyRequest(req *http.Request) {
 	originalURLHost := req.URL.Host
+	originalURLScheme := req.URL.Scheme
 
 	req.URL.Host = rt.sg.options.ProxyHost
+	req.URL.Scheme = rt.sg.options.ProxyScheme
 	req.Host = rt.sg.options.ProxyHost
 
 	req.Header.Add("X-Supergood-ClientID", rt.sg.options.ClientID)
 	req.Header.Add("X-Supergood-ClientSecret", rt.sg.options.ClientSecret)
-	req.Header.Add("X-Supergood-Upstream", fmt.Sprintf("https://%s", originalURLHost))
+	req.Header.Add("X-Supergood-Upstream", fmt.Sprintf("%s://%s", originalURLScheme, originalURLHost))
 }

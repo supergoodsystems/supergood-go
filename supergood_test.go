@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -147,7 +148,11 @@ func mockApiServer(t *testing.T) string {
 						Domain: "httpbin.org",
 					},
 				},
-				ProxyConfig: remoteconfig.ProxyConfig{},
+				ProxyConfig: remoteconfig.ProxyConfig{
+					VendorCredentialConfig: map[string]remoteconfig.ProxyEnabled{
+						"api.openai.com": {Enabled: true},
+					},
+				},
 			}
 			bytes, _ := json.Marshal(remoteConfig)
 			rw.Write(bytes)
@@ -221,15 +226,43 @@ func testServer(t *testing.T) string {
 	})
 }
 
+// mock proxy.supergood.ai for testing
+func mockProxyServer(t *testing.T) string {
+
+	return mockServer(t, func(rw http.ResponseWriter, r *http.Request) {
+
+		if r.Header.Get("X-Supergood-ClientID") != clientID && r.Header.Get("X-Supergood-ClientSecret") != clientSecret {
+			rw.WriteHeader(http.StatusUnauthorized)
+			rw.Write([]byte(`{"error":"Unauthorized"}`))
+			return
+		}
+
+		proxyEvent := event.Event{
+			Request:  &event.Request{ID: "proxyId"},
+			Response: &event.Response{Status: 200},
+		}
+		events = append(events, &proxyEvent)
+
+		rw.Write([]byte(`{"message":"Success"}`))
+	})
+}
+
 func Test_Supergood(t *testing.T) {
 	baseURL := mockApiServer(t)
 	telemetryURL := mockTelemetryServer(t)
 	host := testServer(t)
+	proxyURLStr := mockProxyServer(t)
+	proxyURl, err := url.Parse(proxyURLStr)
+	if err != nil {
+		panic(err)
+	}
 
 	t.Setenv("SUPERGOOD_CLIENT_ID", clientID)
 	t.Setenv("SUPERGOOD_CLIENT_SECRET", clientSecret)
 	t.Setenv("SUPERGOOD_BASE_URL", baseURL)
 	t.Setenv("SUPERGOOD_TELEMETRY_URL", telemetryURL)
+	t.Setenv("SUPERGOOD_PROXY_HOST", proxyURl.Host)
+	t.Setenv("SUPERGOOD_PROXY_SCHEME", proxyURl.Scheme)
 
 	echoBody := func(t *testing.T, o *Options, body []byte) {
 		reset()
@@ -471,5 +504,15 @@ func Test_Supergood(t *testing.T) {
 		defer sg.Close()
 		sg.DefaultClient.Get(host + "/echo")
 		require.Len(t, events, 0)
+	})
+
+	t.Run("handling proxied request", func(t *testing.T) {
+		reset()
+		sg, err := New(&Options{})
+		require.NoError(t, err)
+		defer sg.Close()
+		sg.DefaultClient.Get("https://api.openai.com")
+		require.Len(t, events, 1)
+		require.Equal(t, 200, events[0].Response.Status)
 	})
 }

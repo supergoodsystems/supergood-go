@@ -205,7 +205,7 @@ func (o *Options) parse() (*Options, error) {
 		o.ProxyScheme = os.Getenv("SUPERGOOD_PROXY_SCHEME")
 	}
 	if o.ProxyScheme == "" {
-		o.ProxyScheme = "HTTPS"
+		o.ProxyScheme = "https"
 	}
 
 	return o, nil
