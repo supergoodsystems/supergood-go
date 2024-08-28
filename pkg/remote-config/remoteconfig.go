@@ -9,6 +9,7 @@ func New(opts RemoteConfigOpts) RemoteConfig {
 	return RemoteConfig{
 		baseURL:                 opts.BaseURL,
 		cache:                   map[string]map[string]EndpointCacheVal{},
+		proxyCache:              map[string]*ProxyEnabled{},
 		clientID:                opts.ClientID,
 		clientSecret:            opts.ClientSecret,
 		client:                  opts.Client,

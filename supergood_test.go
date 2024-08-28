@@ -104,51 +104,50 @@ func mockApiServer(t *testing.T) string {
 		}
 
 		if r.URL.Path == "/config" && r.Method == "GET" && !remoteConfigBroken {
-			remoteConfig := []remoteconfig.RemoteConfigResponse{
-				{
-					Id:     "test-id-ignore",
-					Domain: "ignored-domain.com",
-					Name:   "Ignore me domain",
-					Endpoints: []remoteconfig.Endpoint{
-						{
-							Id:     "test-endpoint-id",
-							Name:   "ignore me endpoint",
-							Method: "GET",
-							MatchingRegex: remoteconfig.MatchingRegex{
-								Location: "path",
-								Regex:    "/ignore-me",
-							},
-							EndpointConfiguration: remoteconfig.EndpointConfiguration{
-								Action: "Ignore",
-							},
-						},
-					},
-				},
-				{
-					Id:     "test-id-blocked",
-					Domain: "blocked-domain.com",
-					Name:   "Blocked domain",
-					Endpoints: []remoteconfig.Endpoint{
-						{
-							Id:     "test-endpoint-id",
-							Name:   "block me endpoint",
-							Method: "GET",
-							MatchingRegex: remoteconfig.MatchingRegex{
-								Location: "path",
-								Regex:    "/block-me",
-							},
-							EndpointConfiguration: remoteconfig.EndpointConfiguration{
-								Action: "Block",
+			remoteConfig := remoteconfig.RemoteConfigResponse{
+				EndpointConfig: []remoteconfig.EndpointConfig{
+					{
+						Domain: "ignored-domain.com",
+						Endpoints: []remoteconfig.Endpoint{
+							{
+								Id:     "test-endpoint-id",
+								Name:   "ignore me endpoint",
+								Method: "GET",
+								MatchingRegex: remoteconfig.MatchingRegex{
+									Location: "path",
+									Regex:    "/ignore-me",
+								},
+								EndpointConfiguration: remoteconfig.EndpointConfiguration{
+									Action: "Ignore",
+								},
 							},
 						},
 					},
+					{
+						Domain: "blocked-domain.com",
+						Endpoints: []remoteconfig.Endpoint{
+							{
+								Id:     "test-endpoint-id",
+								Name:   "block me endpoint",
+								Method: "GET",
+								MatchingRegex: remoteconfig.MatchingRegex{
+									Location: "path",
+									Regex:    "/block-me",
+								},
+								EndpointConfiguration: remoteconfig.EndpointConfiguration{
+									Action: "Block",
+								},
+							},
+						},
+					},
+					{
+						Domain: "supergood-testbed.herokuapp.com",
+					},
+					{
+						Domain: "httpbin.org",
+					},
 				},
-				{
-					Domain: "supergood-testbed.herokuapp.com",
-				},
-				{
-					Domain: "httpbin.org",
-				},
+				ProxyConfig: remoteconfig.ProxyConfig{},
 			}
 			bytes, _ := json.Marshal(remoteConfig)
 			rw.Write(bytes)

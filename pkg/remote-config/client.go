@@ -10,8 +10,8 @@ import (
 )
 
 // fetch calls the supergood /config endpoint and returns a marshalled config object
-func (rc *RemoteConfig) fetch() ([]RemoteConfigResponse, error) {
-	url, err := url.JoinPath(rc.baseURL, "/config")
+func (rc *RemoteConfig) fetch() (*RemoteConfigResponse, error) {
+	url, err := url.JoinPath(rc.baseURL, "/v2/config")
 	if err != nil {
 		return nil, err
 	}
@@ -36,11 +36,11 @@ func (rc *RemoteConfig) fetch() ([]RemoteConfigResponse, error) {
 		return nil, fmt.Errorf("supergood: got HTTP %v posting to /config with error: %s", resp.Status, message)
 	}
 
-	var remoteConfigArray []RemoteConfigResponse
-	err = json.NewDecoder(resp.Body).Decode(&remoteConfigArray)
+	var remoteConfig RemoteConfigResponse
+	err = json.NewDecoder(resp.Body).Decode(&remoteConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return remoteConfigArray, nil
+	return &remoteConfig, nil
 }

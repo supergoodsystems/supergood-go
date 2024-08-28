@@ -22,12 +22,11 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	endpointId := ""
 	endpointAction := "Accept"
-	shouldProxy := false
+	shouldProxy := rt.sg.RemoteConfig.GetProxyEnabledForHost(req.Host)
 
 	if endpoint != nil {
 		endpointId = endpoint.Id
 		endpointAction = endpoint.Action
-		shouldProxy = endpoint.ProxyRequest
 	}
 
 	if !rt.shouldLogRequest(req, endpointAction) {
