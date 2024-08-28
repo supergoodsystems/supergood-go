@@ -59,7 +59,7 @@ func (rc *RemoteConfig) IsRedactAllEnabled() bool {
 	return rc.redactAll
 }
 
-// Create takes in the response body marshalled from the /config request and
+// Create takes in the response body marshalled from the /v2/config request and
 // creates a remote config cache object used by supergood client to ignore/allow requests and
 // to redact sensitive keys
 func (rc *RemoteConfig) Create(remoteConfig *RemoteConfigResponse) error {

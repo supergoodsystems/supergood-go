@@ -81,13 +81,13 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if twiceBroken && (r.URL.Path != "/config") {
+		if twiceBroken && (r.URL.Path != "/v2/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
 			return
 		}
 
-		if broken && (r.URL.Path != "/config") {
+		if broken && (r.URL.Path != "/v2/config") {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(`Oops`))
 			return
@@ -103,7 +103,7 @@ func mockApiServer(t *testing.T) string {
 			return
 		}
 
-		if r.URL.Path == "/config" && r.Method == "GET" && !remoteConfigBroken {
+		if r.URL.Path == "/v2/config" && r.Method == "GET" && !remoteConfigBroken {
 			remoteConfig := remoteconfig.RemoteConfigResponse{
 				EndpointConfig: []remoteconfig.EndpointConfig{
 					{
