@@ -89,7 +89,10 @@ func (rc *RemoteConfig) Create(remoteConfig *RemoteConfigResponse) error {
 		}
 	}
 	for host, proxyConfig := range remoteConfig.ProxyConfig.VendorCredentialConfig {
-		rc.SetProxyForHost(host, proxyConfig)
+		err := rc.SetProxyForHost(host, proxyConfig)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
