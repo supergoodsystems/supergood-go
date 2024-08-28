@@ -169,7 +169,7 @@ func (o *Options) parse() (*Options, error) {
 		}
 	}
 
-	if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
+	if len(o.AllowedDomains) > 0 {
 		if contains(o.BaseURL, o.AllowedDomains) {
 			return nil, fmt.Errorf("supergood: AllowedDomain can not match BaseURL")
 		}
@@ -217,7 +217,7 @@ func (o *Options) isRequestInAllowedDomains(req *http.Request) (bool, error) {
 		return false, fmt.Errorf("supergood: invalid BaseURL: %w", err)
 	}
 	baseUrlHostName := strings.TrimPrefix(url.Host, "www.")
-	if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
+	if len(o.AllowedDomains) > 0 {
 		if req != nil {
 			return req.URL.Host != baseUrlHostName && contains(req.URL.Host, o.AllowedDomains), nil
 		}
