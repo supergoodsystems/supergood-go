@@ -9,6 +9,7 @@ func New(opts RemoteConfigOpts) RemoteConfig {
 	return RemoteConfig{
 		baseURL:                 opts.BaseURL,
 		cache:                   map[string]map[string]EndpointCacheVal{},
+		proxyCache:              map[string]*ProxyEnabled{},
 		clientID:                opts.ClientID,
 		clientSecret:            opts.ClientSecret,
 		client:                  opts.Client,
@@ -45,7 +46,7 @@ func (rc *RemoteConfig) Refresh() {
 	}
 }
 
-// fetchAndSetConfig fetches the remote config from the supergood /config endpoint
+// fetchAndSetConfig fetches the remote config from the supergood /v2/config endpoint
 // and then sets it in the Cache on the RemoteConfig
 func (rc *RemoteConfig) fetchAndSetConfig() error {
 	resp, err := rc.fetch()

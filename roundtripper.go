@@ -1,6 +1,7 @@
 package supergood
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -20,12 +21,17 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	endpointId := ""
 	endpointAction := "Accept"
+	shouldProxy := rt.sg.RemoteConfig.GetProxyEnabledForHost(req.URL.Host)
+
 	if endpoint != nil {
 		endpointId = endpoint.Id
 		endpointAction = endpoint.Action
 	}
 
 	if !rt.shouldLogRequest(req, endpointAction) {
+		if shouldProxy {
+			rt.proxyRequest(req)
+		}
 		return rt.next.RoundTrip(req)
 	}
 
@@ -40,6 +46,9 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 			StatusCode: 429,
 		}
 	} else {
+		if shouldProxy {
+			rt.proxyRequest(req)
+		}
 		resp, err = rt.next.RoundTrip(req)
 	}
 
@@ -72,4 +81,17 @@ func (rt *roundTripper) shouldLogRequest(req *http.Request, endpointAction strin
 	}
 
 	return true
+}
+
+func (rt *roundTripper) proxyRequest(req *http.Request) {
+	originalURLHost := req.URL.Host
+	originalURLScheme := req.URL.Scheme
+
+	req.URL.Host = rt.sg.options.ProxyHost
+	req.URL.Scheme = rt.sg.options.ProxyScheme
+	req.Host = rt.sg.options.ProxyHost
+
+	req.Header.Add("X-Supergood-ClientID", rt.sg.options.ClientID)
+	req.Header.Add("X-Supergood-ClientSecret", rt.sg.options.ClientSecret)
+	req.Header.Add("X-Supergood-Upstream", fmt.Sprintf("%s://%s", originalURLScheme, originalURLHost))
 }

@@ -23,6 +23,7 @@ type RemoteConfigOpts struct {
 type RemoteConfig struct {
 	baseURL                 string
 	cache                   map[string]map[string]EndpointCacheVal
+	proxyCache              map[string]*ProxyEnabled
 	clientID                string
 	clientSecret            string
 	client                  *http.Client
@@ -31,6 +32,7 @@ type RemoteConfig struct {
 	initialized             bool
 	handleError             func(error)
 	mutex                   sync.RWMutex
+	proxyMutex              sync.RWMutex
 	redactAll               bool
 	redactRequestBodyKeys   map[string][]string
 	redactResponseBodyKeys  map[string][]string
@@ -38,9 +40,18 @@ type RemoteConfig struct {
 }
 
 type RemoteConfigResponse struct {
-	Id        string     `json:"id"`
+	EndpointConfig []EndpointConfig `json:"endpointConfig"`
+	ProxyConfig    ProxyConfig      `json:"proxyConfig"`
+}
+
+type ProxyConfig struct {
+	VendorCredentialConfig map[string]ProxyEnabled `json:"vendorCredentialConfig"`
+}
+type ProxyEnabled struct {
+	Enabled bool `json:"enabled"`
+}
+type EndpointConfig struct {
 	Domain    string     `json:"domain"`
-	Name      string     `json:"name"`
 	Endpoints []Endpoint `json:"endpoints"`
 }
 
