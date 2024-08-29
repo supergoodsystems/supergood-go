@@ -9,9 +9,9 @@ import (
 	"net/url"
 )
 
-// fetch calls the supergood /config endpoint and returns a marshalled config object
-func (rc *RemoteConfig) fetch() ([]RemoteConfigResponse, error) {
-	url, err := url.JoinPath(rc.baseURL, "/config")
+// fetch calls the supergood /v2/config endpoint and returns a marshalled config object
+func (rc *RemoteConfig) fetch() (*RemoteConfigResponse, error) {
+	url, err := url.JoinPath(rc.baseURL, "/v2/config")
 	if err != nil {
 		return nil, err
 	}
@@ -33,14 +33,14 @@ func (rc *RemoteConfig) fetch() ([]RemoteConfigResponse, error) {
 	} else if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		body, _ := io.ReadAll(resp.Body)
 		message := string(body)
-		return nil, fmt.Errorf("supergood: got HTTP %v posting to /config with error: %s", resp.Status, message)
+		return nil, fmt.Errorf("supergood: got HTTP %v posting to /v2/config with error: %s", resp.Status, message)
 	}
 
-	var remoteConfigArray []RemoteConfigResponse
-	err = json.NewDecoder(resp.Body).Decode(&remoteConfigArray)
+	var remoteConfig RemoteConfigResponse
+	err = json.NewDecoder(resp.Body).Decode(&remoteConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return remoteConfigArray, nil
+	return &remoteConfig, nil
 }

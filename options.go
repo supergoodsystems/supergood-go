@@ -88,6 +88,12 @@ type Options struct {
 
 	// MaxCacheSizeBytes is the maximum size the cache can grow before we stop appending to the cache
 	MaxCacheSizeBytes int
+
+	// ProxyHost is the Supergood Proxy Hostname
+	ProxyHost string
+
+	// ProxyScheme is the Supergood Proxy HTTP Scheme
+	ProxyScheme string
 }
 
 func (o *Options) parse() (*Options, error) {
@@ -163,7 +169,7 @@ func (o *Options) parse() (*Options, error) {
 		}
 	}
 
-	if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
+	if len(o.AllowedDomains) > 0 {
 		if contains(o.BaseURL, o.AllowedDomains) {
 			return nil, fmt.Errorf("supergood: AllowedDomain can not match BaseURL")
 		}
@@ -188,6 +194,20 @@ func (o *Options) parse() (*Options, error) {
 		o.MaxCacheSizeBytes = 100000000 // 100MB
 	}
 
+	if o.ProxyHost == "" {
+		o.ProxyHost = os.Getenv("SUPERGOOD_PROXY_HOST")
+	}
+	if o.ProxyHost == "" {
+		o.ProxyHost = "proxy.supergood.ai"
+	}
+
+	if o.ProxyScheme == "" {
+		o.ProxyScheme = os.Getenv("SUPERGOOD_PROXY_SCHEME")
+	}
+	if o.ProxyScheme == "" {
+		o.ProxyScheme = "https"
+	}
+
 	return o, nil
 }
 
@@ -197,7 +217,7 @@ func (o *Options) isRequestInAllowedDomains(req *http.Request) (bool, error) {
 		return false, fmt.Errorf("supergood: invalid BaseURL: %w", err)
 	}
 	baseUrlHostName := strings.TrimPrefix(url.Host, "www.")
-	if o.AllowedDomains != nil && len(o.AllowedDomains) > 0 {
+	if len(o.AllowedDomains) > 0 {
 		if req != nil {
 			return req.URL.Host != baseUrlHostName && contains(req.URL.Host, o.AllowedDomains), nil
 		}
